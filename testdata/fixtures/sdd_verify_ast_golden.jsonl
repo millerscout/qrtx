@@ -1,0 +1,2 @@
+{"id":"pkgok_pass","package":"pkgok","want_drift":false}
+{"id":"pkgdrift_fail","package":"pkgdrift","want_drift":true,"want_symbol":"Value"}

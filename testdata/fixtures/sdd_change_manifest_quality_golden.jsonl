@@ -1,0 +1,9 @@
+{"id":"intent-good","fixture":"intent-good","slug":"intent-good","expect_pass_verify":true,"expect_min_score":70}
+{"id":"intent-bad-missing-acceptance","fixture":"intent-bad-missing-acceptance","slug":"intent-bad-missing-acceptance","expect_pass_verify":false,"expect_min_score":0,"expect_max_score":70}
+{"id":"intent-grounded","fixture":"intent-grounded","slug":"intent-grounded","expect_pass_verify":true,"expect_min_score":95}
+{"id":"intent-fake-path","fixture":"intent-fake-path","slug":"intent-fake-path","expect_pass_verify":true,"expect_min_score":0,"expect_max_score":94}
+{"id":"intent-observed-tbd","fixture":"intent-observed-tbd","slug":"intent-observed-tbd","expect_pass_verify":true,"expect_min_score":0,"expect_max_score":94}
+{"id":"failure-restatement","fixture":"failure-restatement","slug":"failure-restatement","expect_pass_verify":true,"expect_min_score":0,"expect_max_score":70}
+{"id":"failure-decided","fixture":"failure-decided","slug":"failure-decided","expect_pass_verify":true,"expect_min_score":95,"max_wall_ms":2000}
+{"id":"product-echo","fixture":"product-echo","slug":"product-echo","expect_pass_verify":true,"expect_min_score":0,"expect_max_score":70}
+{"id":"product-outcomes","fixture":"product-outcomes","slug":"product-outcomes","expect_pass_verify":true,"expect_min_score":95,"max_wall_ms":2000}
