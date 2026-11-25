@@ -1,0 +1,65 @@
+{
+  "slug": "tic-tac-toe",
+  "score": "context",
+  "domain": "internal/game",
+  "code_hits": [
+    {
+      "path": "internal/game/board.go",
+      "line": 12,
+      "source": "graph"
+    },
+    {
+      "path": "internal/game/ai.go",
+      "line": 3,
+      "source": "embedding"
+    }
+  ],
+  "packages": [
+    "internal/game"
+  ],
+  "overlaps": [
+    {
+      "other_slug": "city-survival-game",
+      "shared_packages": [
+        "internal/game"
+      ]
+    }
+  ],
+  "graph_neighbors": [
+    {
+      "from": "internal/game",
+      "to": "internal/render"
+    }
+  ],
+  "issues": {
+    "total_open": 4,
+    "by_rule": {
+      "stall": 1,
+      "tool_repeat": 3
+    }
+  },
+  "known_fixes": [
+    {
+      "method": "edit",
+      "change_summary": "guard empty board",
+      "test_name": "TestEmptyBoard"
+    }
+  ],
+  "warnings": [
+    "request overlap with \"city-survival-game\""
+  ],
+  "existing_behaviour": [
+    {
+      "package": "internal/game",
+      "text": "A full board is a draw."
+    }
+  ],
+  "constitution": [
+    {
+      "path": "CONSTITUTION.md",
+      "rules": [
+        "C1 Tests lock behaviour."
+      ]
+    }
+  ]
+}

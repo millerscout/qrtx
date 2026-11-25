@@ -7,9 +7,8 @@ import (
 	"unicode"
 )
 
-// sourceGraph is the CodeHit.Source for CodeIndex.Related hits. The value
-// "kuzu" is kept for JSON compatibility; a rename to "graph" is planned.
-const sourceGraph = "kuzu"
+// sourceGraph is the CodeHit.Source for CodeIndex.Related hits.
+const sourceGraph = "graph"
 
 // CodeHit is one propose-context code lookup row.
 type CodeHit struct {

@@ -56,7 +56,7 @@ type ProposeContextReport struct {
 	Overlaps       []PackageOverlap `json:"overlaps"`
 	GraphNeighbors []GraphNeighbor  `json:"graph_neighbors"`
 	Issues         *IssuesSummary   `json:"issues,omitempty"`
-	KnownFixes     []KnownFix       `json:"fixledger,omitempty"`
+	KnownFixes     []KnownFix       `json:"known_fixes,omitempty"`
 	Warnings       []string         `json:"warnings"`
 	// ExistingBehaviour is what archived changes promised for the touched packages.
 	ExistingBehaviour []ExistingBehaviour `json:"existing_behaviour,omitempty"`
@@ -365,7 +365,7 @@ func WriteProposeContextHuman(w io.Writer, rep ProposeContextReport) error {
 			_, _ = fmt.Fprintf(w, "  %s: %d\n", k, rep.Issues.ByRule[k])
 		}
 	}
-	_, _ = fmt.Fprintln(w, "\nfixledger:")
+	_, _ = fmt.Fprintln(w, "\nknown fixes:")
 	if len(rep.KnownFixes) == 0 {
 		_, _ = fmt.Fprintln(w, "  (unavailable or none)")
 	} else {

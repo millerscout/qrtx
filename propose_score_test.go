@@ -19,7 +19,7 @@ func TestGraphHitCount(t *testing.T) {
 	called := false
 	queryRelatedHits = func(project, query string, limit int) []CodeHit {
 		called = true
-		return []CodeHit{{Path: "internal/score/score.go", Line: 1, Source: "kuzu"}}
+		return []CodeHit{{Path: "internal/score/score.go", Line: 1, Source: sourceGraph}}
 	}
 	if n := GraphHitCount("demo", "a ferry board"); n != 0 || called {
 		t.Fatalf("plain request hits %d called %v", n, called)
@@ -72,10 +72,10 @@ func TestProposeHits(t *testing.T) {
 			t.Fatalf("query included plain words: %s", query)
 		}
 		return []CodeHit{
-			{Path: "a.go", Line: 1, Source: "kuzu"},
-			{Path: "b.go", Line: 2, Source: "kuzu"},
-			{Path: "c.go", Line: 3, Source: "kuzu"},
-			{Path: "d.go", Line: 4, Source: "kuzu"},
+			{Path: "a.go", Line: 1, Source: sourceGraph},
+			{Path: "b.go", Line: 2, Source: sourceGraph},
+			{Path: "c.go", Line: 3, Source: sourceGraph},
+			{Path: "d.go", Line: 4, Source: sourceGraph},
 		}
 	}
 	queryEmbeddingHits = func(project, query string, limit int) []CodeHit {
@@ -87,7 +87,7 @@ func TestProposeHits(t *testing.T) {
 	if len(hits) != 3 {
 		t.Fatalf("hits=%d", len(hits))
 	}
-	if hits[0].Source != "kuzu" || hits[2].Path != "c.go" {
+	if hits[0].Source != sourceGraph || hits[2].Path != "c.go" {
 		t.Fatalf("hits=%+v", hits)
 	}
 	if relatedCalls != 1 || embedCalls != 0 {
@@ -111,7 +111,7 @@ func TestProposeHits(t *testing.T) {
 	}
 
 	queryRelatedHits = func(string, string, int) []CodeHit {
-		return []CodeHit{{Path: "a.go", Line: 1, Source: "kuzu"}}
+		return []CodeHit{{Path: "a.go", Line: 1, Source: sourceGraph}}
 	}
 	queryEmbeddingHits = func(string, string, int) []CodeHit {
 		embedCalls++
@@ -129,7 +129,7 @@ func TestProposeHits(t *testing.T) {
 	}
 	queryRelatedHits = func(string, string, int) []CodeHit {
 		relatedCalls++
-		return []CodeHit{{Path: "scripts/bench.py", Line: 1, Source: "kuzu"}}
+		return []CodeHit{{Path: "scripts/bench.py", Line: 1, Source: sourceGraph}}
 	}
 	embedCalls = 0
 	relatedCalls = 0
@@ -137,7 +137,7 @@ func TestProposeHits(t *testing.T) {
 	if len(ranked) != 3 || ranked[0].Source != "symbol" || ranked[0].Path != "internal/score/score.go" {
 		t.Fatalf("ranked=%+v", ranked)
 	}
-	if ranked[1].Source != "kuzu" || ranked[2].Source != "embedding" {
+	if ranked[1].Source != sourceGraph || ranked[2].Source != "embedding" {
 		t.Fatalf("ranked fill=%+v", ranked)
 	}
 	if symbolCalls != 1 {

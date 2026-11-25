@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.0 — 2026-11-25
+
+### Changed (breaking for JSON readers)
+
+- `propose-context --json`: the known-fixes list is now under `known_fixes` (was `fixledger`).
+- Code hits from the code graph now have `"source": "graph"` (was `"kuzu"`). Embedding hits keep `"source": "embedding"`.
+- The human `propose-context` output heads that section `known fixes:` (was `fixledger:`).
+
+### Added
+
+- A golden test pins every key and source value of `propose-context --json` (`testdata/fixtures/sdd_propose_context_json.golden.json`).
+
 ## v0.2.0 — 2026-11-25
 
 ### Added

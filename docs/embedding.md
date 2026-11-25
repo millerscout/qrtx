@@ -51,7 +51,7 @@ type ContextProvider interface {
 sdd.SetContextProvider(myContext)
 ```
 
-The results appear in propose context as `issues` and `fixledger`, giving the planning agent the project's current health and recent fixes that worked.
+The results appear in propose context as `issues` and `known_fixes`, giving the planning agent the project's current health and recent fixes that worked.
 
 ### Classifiers
 
