@@ -60,6 +60,8 @@ Empty output and exit 0 means no active changes; scaffold next. Do not initialis
    - `Deploy:` gives the order in which binaries, scripts and data move, and which old version must keep working during that window: for example, ship the reader that understands both formats, then the writer, then run the migration. It reads `n/a (<reason>)` when nothing persists and no other process is involved.
    - `Rollback:` says how to undo the change if it fails midway, or reads `n/a (<reason>)` when nothing persists. finish-propose requires a `Deploy:` line whenever `Rollback:` is not n/a.
 
+5c. **Constitution** — Run `sdd constitution show`. If it prints `no constitution`, skip this step. Otherwise read every rule file it lists; those rules bind every change. Under `## Constitution`, write one `- C<n> <rule> → <how this plan complies>` line for each rule the change touches, citing the rule by its heading or the part before its colon (`Rule 1`, `Article IX`). Point at the task, Validate line or Decision that satisfies it. Write a single `- None: <why no rule applies>` only when no rule touches the change. A rule the plan cannot meet is not an exception to write down: ask the user, and record their answer as a Decision. finish-propose rejects a plan without this section, a line that names no rule, and a line without `→`.
+
 6. **Plan** — `change.sdd.md` holds the roadmap: one `### Phase` per feature the request names, marked `review` or `accepted`, plus the path of that phase’s task file. Checkbox tasks live in `sdd/changes/<slug>/phases/<nn-name>.md`. A feature the request says comes later goes under **Deferred**. The first pass writes headings and one question. Before the answer, do not invent outcomes. After the answer, write the outcome bullets, copy them to Assumptions, and do not add a product the request did not name. The second pass writes the steps and the check for that phase, not a copy of the heading.
 
    Each task line ends with its own check (`verify: <command or observable result>`). Do not leave all checking to a final task. Every scenario id is cited by a Validate line or a task (`covers S1,S2`). finish-propose rejects an uncited scenario.
@@ -101,4 +103,4 @@ Read `score:` and `domain:` from propose-context.
 **Guardrails**
 
 - Manifest must show whether the **original request** would be addressed.
-- The project's own contributor docs (README, CONTRIBUTING, AGENTS.md, CLAUDE.md) take precedence on how to build and test.
+- The project's constitution (`sdd constitution show`) is binding; its own contributor docs (README, CONTRIBUTING, AGENTS.md, CLAUDE.md) say how to build and test.

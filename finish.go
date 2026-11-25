@@ -39,6 +39,9 @@ func FinishPropose(repoRoot, slug string, stdout, stderr io.Writer) error {
 	if err := proposeDiagnosticReady(string(raw)); err != nil {
 		return err
 	}
+	if err := validateConstitutionSection(repoRoot, slug, string(raw)); err != nil {
+		return err
+	}
 	sc, err := ScoreChangeManifest(repoRoot, slug)
 	if err != nil {
 		return err

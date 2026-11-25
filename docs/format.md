@@ -27,6 +27,7 @@ Sections, in template order:
 | `## Assumptions`, `## Non-goals`, `## Deferred` | Open assumptions, explicit boundaries, other slugs that own split work. |
 | `## Tasks` | Checkbox tasks, or a roadmap of `### Phase` headings pointing at `phases/<nn-name>.md`. Each task ends with its check and may cite `covers S1,S2`. |
 | `## Validate` | `- [ ] V<n> <command>` lines that `run-validate` executes, or `manual:` steps. |
+| `## Constitution` | Only in repositories with a constitution: `- C<n> <rule> → <how this plan complies>` per rule the change touches, or `- None: <why no rule applies>`. |
 | `## Review` | `- R<n> <claim ids> <conflict> → <fix>` for each finding from the review packet, or `- None: <what was checked>`. |
 
 Roadmap phases carry an attribute line that apply reads:
@@ -39,6 +40,36 @@ Roadmap phases carry an attribute line that apply reads:
 `status="review"` waits for the user; apply implements only `status="accepted"` phases.
 
 `sdd change verify` rejects template `(TBD …)` text left in a required section, a scenario with no requirement and a requirement with no scenario. `finish-propose` and `finish-apply` add the coverage and review checks described in the skills.
+
+## Constitution
+
+A constitution is the project's standing rules: what every change must respect, however small. It is one or more Markdown files: `sdd/constitution.md` by default, or the files listed under `constitution:` in `.sdd.yaml`. `sdd constitution init` writes a starter file.
+
+Each rule is a heading. In each file, sdd takes whichever of `##` and `###` appears more often (ties go to `##`), ignoring headings inside code fences. So both of these layouts work. One heading per rule:
+
+```markdown
+## Rule 1: Tests before code
+## Rule 2: No silent data loss
+```
+
+Or rules grouped under sections (the `###` headings are the rules):
+
+```markdown
+## Purpose
+## Rules
+### Rule 1: Tests before code
+### Rule 2: No silent data loss
+### Rule 3: Public contracts stay compatible
+```
+
+A plan cites a rule by its full heading, or by the part before the first `:`, ` — ` or ` - ` (`Rule 1`, `Article IX`). `sdd constitution show` lists the rules, and `propose-context` and the review packet include them.
+
+`sdd change new` adds a `## Constitution` section to the template when the repository has a constitution. `finish-propose` then requires that section, with:
+
+- one or more `- C<n> <rule> → <how the plan complies>` lines, each naming a real rule; or
+- a single `- None: <why no rule applies>`.
+
+`verify` and `archive` do not check the section, so changes created before the constitution existed still archive.
 
 ## Package contract: `<package>/contract.sdd.md`
 

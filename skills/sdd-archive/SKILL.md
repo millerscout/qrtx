@@ -11,7 +11,7 @@ Archive after all **Tasks** and **Validate** are `- [x]` and manifest `status: c
 
 1. `sdd change status --change <slug>` — confirm complete.
 2. Optional: `sdd change run-validate --change <slug>` if V1.x not yet run.
-3. Run the project's test suite when runtime code changed.
+3. Run the project's test suite when runtime code changed, plus any check the constitution (`sdd constitution show`) or the change's **Constitution** lines require before a change is done.
 4. Archive: `sdd change archive <slug> --run-validate`. Add `--quick-check` to run the `quick_check` command from `.sdd.yaml` before the move (opt-in; may be slow).
 5. Report path under `sdd/changes/archive/`, and the package contracts that gained a `## Behaviour` block.
 

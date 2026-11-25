@@ -60,6 +60,8 @@ type ProposeContextReport struct {
 	Warnings       []string         `json:"warnings"`
 	// ExistingBehaviour is what archived changes promised for the touched packages.
 	ExistingBehaviour []ExistingBehaviour `json:"existing_behaviour,omitempty"`
+	// Constitution is the project's rule files and their rules.
+	Constitution []ConstitutionDoc `json:"constitution,omitempty"`
 }
 
 // ProposeContext loads domain context for an SDD change slug (reporting only).
@@ -157,6 +159,11 @@ func ProposeContext(repoRoot, slug string, opts ProposeContextOpts) (ProposeCont
 		dirs = append(dirs, behaviourPackages(repoRoot, []string{pathDir(p)}, "")...)
 	}
 	out.ExistingBehaviour = existingBehaviour(repoRoot, uniqueSorted(dirs))
+	docs, err := LoadConstitution(repoRoot)
+	if err != nil {
+		return out, err
+	}
+	out.Constitution = docs
 	return out, nil
 }
 
@@ -373,6 +380,7 @@ func WriteProposeContextHuman(w io.Writer, rep ProposeContextReport) error {
 			_, _ = fmt.Fprintf(w, "  %s\n", line)
 		}
 	}
+	writeConstitution(w, rep.Constitution)
 	if len(rep.ExistingBehaviour) > 0 {
 		_, _ = fmt.Fprintln(w, "\nexisting_behaviour:")
 		for _, e := range rep.ExistingBehaviour {

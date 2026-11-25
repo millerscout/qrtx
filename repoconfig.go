@@ -21,6 +21,9 @@ type RepoConfig struct {
 	// VerifyPackages lists the packages verify-ast, sync-from-code and status
 	// check when none are named. Empty means every package with a contract.
 	VerifyPackages []string `yaml:"verify_packages"`
+	// Constitution lists the project's rule files, repository-relative.
+	// Empty means sdd/constitution.md when it exists.
+	Constitution []string `yaml:"constitution"`
 	// QuickCheck is a shell command run by `change archive --quick-check`.
 	QuickCheck string `yaml:"quick_check"`
 }

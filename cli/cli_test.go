@@ -114,3 +114,35 @@ func TestSkillsInstallCommand(t *testing.T) {
 		t.Fatalf("list: %q %v", out, err)
 	}
 }
+
+func TestConstitutionCommands(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv(sdd.EnvRepo, root)
+	if out, _, err := run(t, "constitution", "show"); err != nil || !strings.Contains(out, "no constitution") {
+		t.Fatalf("show without one: %q %v", out, err)
+	}
+	if out, _, err := run(t, "constitution", "show", "--json"); err != nil || strings.TrimSpace(out) != "[]" {
+		t.Fatalf("show --json without one: %q %v", out, err)
+	}
+	if out, _, err := run(t, "constitution", "init"); err != nil || !strings.Contains(out, sdd.DefaultConstitutionFile) {
+		t.Fatalf("init: %q %v", out, err)
+	}
+	if _, _, err := run(t, "constitution", "init"); err == nil {
+		t.Fatal("second init without --force should fail")
+	}
+	out, _, err := run(t, "constitution", "show")
+	if err != nil || !strings.Contains(out, "Rule 1: Tests before code") {
+		t.Fatalf("show: %q %v", out, err)
+	}
+	if _, _, err := run(t, "change", "propose-context", "--change", "nope"); err == nil {
+		t.Fatal("propose-context on a missing slug should fail")
+	}
+	if _, _, err := run(t, "change", "new", "add-thing"); err != nil {
+		t.Fatal(err)
+	}
+	out, _, err = run(t, "change", "propose-context", "--change", "add-thing", "--json")
+	var rep sdd.ProposeContextReport
+	if err != nil || json.Unmarshal([]byte(out), &rep) != nil || len(rep.Constitution) != 1 || rep.Constitution[0].Path != sdd.DefaultConstitutionFile {
+		t.Fatalf("propose-context should carry the constitution: %q %v", out, err)
+	}
+}

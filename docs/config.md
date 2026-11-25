@@ -8,6 +8,7 @@ Optional, at the repository root. Every key is optional.
 |---|---|---|---|
 | `validate_allow` | list of command prefixes | `change run-validate`, `finish-apply`, `archive --run-validate` | none beyond the built-ins |
 | `quick_check` | shell command | `change archive --quick-check` | unset; the flag fails |
+| `constitution` | list of Markdown files | `constitution show`, `change new`, `propose-context`, `review-packet`, `finish-propose` | `sdd/constitution.md` when it exists |
 | `verify_packages` | list of package dirs | `verify-ast`, `sync-from-code`, `StatusForRepo` when no package is named | every directory with a `contract.sdd.md` |
 
 ### Which `Validate` commands run
@@ -35,3 +36,4 @@ Lines marked `manual:` are skipped. Set `SDD_RUN_VALIDATE=1` to run any command.
 - `<package>/contract.sdd.md` — `## Behaviour` appended on archive; exports rewritten by `sync-from-code`.
 - `.sdd-graph.json` — written by `sdd graph` and `propose-context --refresh-graph`.
 - `.claude/skills/sdd-*/SKILL.md` — written by `sdd skills install`.
+- `sdd/constitution.md` — written by `sdd constitution init`.

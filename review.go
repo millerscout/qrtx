@@ -54,6 +54,8 @@ type ReviewPacket struct {
 	Touches []ReviewTouch `json:"touches"`
 	// Callers holds each call site of a symbol a claim says "every caller" of.
 	Callers []ReviewCode `json:"callers,omitempty"`
+	// Constitution is the project's rules, which the plan's C lines cite.
+	Constitution []ConstitutionDoc `json:"constitution,omitempty"`
 }
 
 var (
@@ -93,6 +95,9 @@ func buildReviewPacket(repoRoot, slug, text, phases string) ReviewPacket {
 	p.Callers = callerCode
 	p.Hints = append(reviewHints(repoRoot, text, p.Claims), touchHints...)
 	p.Hints = append(p.Hints, refHints(loadSources(repoRoot), text, phases, p.Claims)...)
+	// A broken constitution config is reported by finish-propose; the packet
+	// is still useful without it.
+	p.Constitution, _ = LoadConstitution(repoRoot)
 	return p
 }
 
@@ -136,6 +141,11 @@ func reviewClaims(text string) []ReviewClaim {
 			id = "D" + m[1]
 		}
 		out = append(out, ReviewClaim{ID: id, Section: "Decisions", Text: b})
+	}
+	for _, b := range sectionBullets(sectionMarkdown(text, "Constitution")) {
+		if m := constitutionBulletIDRE.FindStringSubmatch(b); m != nil {
+			out = append(out, ReviewClaim{ID: "C" + m[1], Section: "Constitution", Text: b})
+		}
 	}
 	n = 0
 	for _, b := range claimLines(sectionMarkdown(text, "Assumptions")) {
@@ -523,6 +533,16 @@ func FormatReviewPacket(p ReviewPacket) string {
 	b.WriteString("## Claims\n\n")
 	for _, c := range p.Claims {
 		b.WriteString("- " + c.ID + " (" + c.Section + ") " + c.Text + "\n")
+	}
+	if len(p.Constitution) > 0 {
+		b.WriteString("\n## Constitution\n\n")
+		b.WriteString("The project's rules. Check each C claim against its rule, and report a rule the plan breaks, or a rule the change touches that no C claim covers, as a finding.\n\n")
+		for _, d := range p.Constitution {
+			b.WriteString("- " + d.Path + "\n")
+			for _, r := range d.Rules {
+				b.WriteString("  - " + r + "\n")
+			}
+		}
 	}
 	if len(p.Hints) > 0 {
 		b.WriteString("\n## Hints (mechanical, may be false positives)\n\n")

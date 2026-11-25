@@ -71,6 +71,14 @@ func NewChange(repoRoot, slug string) error {
 		return err
 	}
 	body := fmt.Sprintf("```change\nname: %s\nstatus: planning\npackages: []\n```\n\n## Why\n\n(TBD — user pain and product sense, and the chosen approach. Alternatives go in Decisions.)\n\n## User request\n\n(TBD — what the user wanted to accomplish or experience, from the conversation arc.)\n\n## Acceptance\n\n- (TBD — user-visible checks that satisfy the requester.)\n\n## Requirements\n\n- (TBD — `Q1 <subject> SHALL <behaviour>.` One per concern the request touches: the normal path that must keep working, the new behaviour, failure and recovery, what happens afterwards, what an operator sees.)\n\n## Scenarios\n\n- (TBD — `S1 (Q1) WHEN <condition> THEN <observable result>`. One per failure, boundary, empty or partial-failure case this request can hit. Cite each id in Validate or a task with `covers S1`.)\n\n## Decisions\n\n- (TBD — `D1 <choice>. Rejected: <alternative> because <reason>.` Check each against Acceptance, Scenarios and the cited code. `None: <reason>` when there is no choice.)\n\n## Risks\n\n- (TBD — `<risk> → <mitigation>`.)\n\nDeploy: (TBD — when the change persists data or spans processes: the order binaries, scripts and data move in, and which old version must keep working meanwhile. `n/a (<reason>)` otherwise.)\n\nRollback: (TBD — how to undo if this fails midway, or `n/a (<reason>)` when nothing persists.)\n\n## Observed\n\n(TBD — cite a path that exists in the repo. Separate from assumptions.)\n\n## Assumptions\n\n(TBD)\n\n## Non-goals\n\n(TBD — a boundary the request already has.)\n\n## Deferred\n\n(Optional — other slugs that own split acceptance.)\n\n## Tasks\n\n- [ ] 1.1 First implementation task\n\n## Validate\n\n(Minimal regression — one focused task per acceptance bullet; end each line with the scenarios it covers, `covers S1,S2`. Name harness: go test, unittest, golden JSONL row, or manual:.)\n\n- [ ] V1.1 (TBD — e.g. go test ./… -run Test…)\n- [ ] V1.2 (optional) golden row in scripts/fixtures/ if behavior is user-visible\n\n## Review\n\n- (TBD — last step: run `%[2]s change review-packet --change %[1]s`, give it to a second reader with fresh context, and record each finding as `R<n> <claim ids> <conflict> → <fix>`, or `None: <what was checked>`.)\n", slug, CLIName)
+	docs, err := LoadConstitution(repoRoot)
+	if err != nil {
+		return err
+	}
+	if len(docs) > 0 {
+		section := fmt.Sprintf("## Constitution\n\n- (TBD — one `C1 <rule> → <how this plan complies>` line per rule from %s that this change touches (`%s constitution show` lists them), or `None: <why no rule applies>`.)\n\n## Review\n", constitutionPaths(docs), CLIName)
+		body = strings.Replace(body, "## Review\n", section, 1)
+	}
 	path := filepath.Join(dir, changeFileName)
 	return os.WriteFile(path, []byte(body), 0o644)
 }

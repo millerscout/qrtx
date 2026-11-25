@@ -14,6 +14,7 @@ sdd/changes/<slug>/phases/*.md        task lists, one per phase
 go install github.com/millerscout/sdd/cmd/sdd@latest
 cd your-project
 sdd skills install          # writes .claude/skills/sdd-{propose,apply,archive}
+sdd constitution init       # optional: sdd/constitution.md, your project's standing rules
 ```
 
 Then, in Claude Code (or any agent that reads `.claude/skills`):
@@ -39,6 +40,7 @@ See [`examples/tic-tac-toe`](examples/tic-tac-toe) for a complete planned change
 ## How it works
 
 1. **Propose** (`/sdd-propose`). The agent writes the user request, acceptance checks, requirements (`Q1 … SHALL …`), scenarios (`S1 (Q1) WHEN … THEN …`), decisions with rejected alternatives, risks, deploy and rollback notes, and tasks that cite the scenarios they cover. `sdd change review-packet` produces a summary for a second reader, and `finish-propose` refuses an uncovered scenario, an unanswered review hint or a leftover template line.
+   If the project has a constitution, the plan also says under `## Constitution` how it meets each rule it touches, and `finish-propose` checks that every line names a real rule.
 2. **Apply** (`/sdd-apply`). The agent implements accepted phases in order and checks off each task when its test passes. `finish-apply` checks scenario coverage, contract drift and the `Validate` commands.
 3. **Archive** (`/sdd-archive`). The change moves to `sdd/changes/archive/`, and its requirements and scenarios are appended to the `## Behaviour` section of each touched package's contract. The next proposal for that package sees those promises.
 
@@ -59,6 +61,7 @@ See [`examples/tic-tac-toe`](examples/tic-tac-toe) for a complete planned change
 | `sdd verify-ast [--package <dir>]` | Compare `contract.sdd.md` exports with the Go code |
 | `sdd sync-from-code [--package <dir>] [--drifted-only]` | Rewrite contract exports from the code |
 | `sdd skills list` / `install [--dir <dir>] [--force]` | Install the bundled agent skills |
+| `sdd constitution show [--json]` / `init [--force]` | List the project's rules; write a starter `sdd/constitution.md` |
 
 ## Configuration
 
@@ -70,6 +73,8 @@ validate_allow:            # extra command prefixes run-validate may execute
 quick_check: make test     # run by `change archive --quick-check`
 verify_packages:           # default packages for verify-ast and sync-from-code
   - internal/store
+constitution:              # rule files plans must comply with (default: sdd/constitution.md)
+  - docs/RULES.md
 ```
 
 `SDD_REPO` overrides the repository root (otherwise the nearest `go.mod`, or the working directory). See [docs/config.md](docs/config.md).

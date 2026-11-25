@@ -13,10 +13,11 @@ import (
 	"github.com/millerscout/sdd/skills"
 )
 
-// Run executes one sdd subcommand: verify-ast, graph, sync-from-code, mutate, change or skills.
+// Run executes one sdd subcommand: verify-ast, graph, sync-from-code, mutate,
+// change, skills or constitution.
 func Run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution\n", sdd.CLIName)
 		return fmt.Errorf("missing subcommand")
 	}
 	if args[0] == "change" {
@@ -24,6 +25,9 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	}
 	if args[0] == "skills" {
 		return runSkills(args[1:], stdout, stderr)
+	}
+	if args[0] == "constitution" {
+		return runConstitution(args[1:], stdout, stderr)
 	}
 	switch args[0] {
 	case "graph":
@@ -102,7 +106,7 @@ func Run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	default:
-		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution\n", sdd.CLIName)
 		return fmt.Errorf("unknown subcommand: %s", args[0])
 	}
 }
@@ -392,5 +396,54 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 	default:
 		usage()
 		return fmt.Errorf("unknown skills subcommand: %s", args[0])
+	}
+}
+
+// runConstitution shows the project's constitution or scaffolds one.
+func runConstitution(args []string, stdout, stderr io.Writer) error {
+	usage := func() { fmt.Fprintf(stderr, "Usage: %s constitution show [--json] | init [--force]\n", sdd.CLIName) }
+	if len(args) == 0 {
+		usage()
+		return fmt.Errorf("missing constitution subcommand")
+	}
+	root, err := sdd.RepoRoot()
+	if err != nil {
+		return err
+	}
+	switch args[0] {
+	case "show":
+		asJSON := len(args) > 1 && args[1] == "--json"
+		docs, err := sdd.LoadConstitution(root)
+		if err != nil {
+			return err
+		}
+		if asJSON {
+			if docs == nil {
+				docs = []sdd.ConstitutionDoc{}
+			}
+			return json.NewEncoder(stdout).Encode(docs)
+		}
+		if len(docs) == 0 {
+			_, _ = fmt.Fprintf(stdout, "no constitution (add %s or list files under `constitution:` in %s; `%s constitution init` writes a template)\n", sdd.DefaultConstitutionFile, sdd.RepoConfigFile, sdd.CLIName)
+			return nil
+		}
+		for _, d := range docs {
+			_, _ = fmt.Fprintln(stdout, d.Path)
+			for _, r := range d.Rules {
+				_, _ = fmt.Fprintf(stdout, "  - %s\n", r)
+			}
+		}
+		return nil
+	case "init":
+		force := len(args) > 1 && args[1] == "--force"
+		path, err := sdd.InitConstitution(root, force)
+		if err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintf(stdout, "wrote %s\n", path)
+		return nil
+	default:
+		usage()
+		return fmt.Errorf("unknown constitution subcommand: %s", args[0])
 	}
 }

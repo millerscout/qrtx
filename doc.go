@@ -11,7 +11,8 @@
 //     ValidateChangeManifest, ScoreChangeManifest, ArchiveChange), propose
 //     (ProposeContext, FinishPropose), apply (FinishApply, RunValidateTasks,
 //     RunQuickCheck), review (BuildReviewPacket), contracts and drift
-//     (BuildGraph, VerifyAST, SyncPackageFromCode), RepoRoot and
+//     (BuildGraph, VerifyAST, SyncPackageFromCode), constitution
+//     (LoadConstitution, ConstitutionFiles, InitConstitution), RepoRoot and
 //     LoadRepoConfig.
 //   - Host hooks: CodeIndex, ContextProvider, LineClassifier, SecondReader,
 //     CLIName, DefaultProject, RepoEnv and RunValidateEnv.
