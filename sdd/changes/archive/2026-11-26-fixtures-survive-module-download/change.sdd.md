@@ -1,6 +1,6 @@
 ```change
 name: fixtures-survive-module-download
-status: planning
+status: complete
 packages: []
 ```
 
