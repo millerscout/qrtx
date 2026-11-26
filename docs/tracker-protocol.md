@@ -20,7 +20,7 @@ tracker:
 ```
 
 - **Names:** a backend name matches `^[a-z0-9-]+$`, and sdd finds the program as `sdd-tracker-<name>` on `PATH` only. sdd never runs a path from inside the repository.
-- **Credentials:** a plugin reads its credentials from its own environment or from the CLI it wraps. sdd never puts secrets in the request.
+- **Credentials:** sdd never puts secrets in the request. A plugin resolves them per host and repo/project from the user-level credentials file (see Credentials below), never from `.sdd.yaml`.
 - **Mirror:** `mirror` is reserved. Only `change` (one issue per change) is implemented.
 
 ## Calling convention
@@ -114,6 +114,43 @@ Labels such as `sdd:change/dark-mode` and `sdd:project/shop` are optional extras
 - **Where the outbox lives:** in `<git common dir>/sdd/`, or in `.sdd/` outside git.
 - **Draining:** each `sdd tracker` command drains the outbox before and after its own work.
 - **Watching it:** `sdd tracker outbox` shows what is pending.
+
+## Credentials
+
+`.sdd.yaml` is committed, so it must not be able to steer a token. Plugins built with the kit read the user's `credentials.yaml` and use a credential only when all three hold:
+- the file binds the exact API host (and port, when the URL has one);
+- the binding's `scopes` lists the repo or project the request is for;
+- no redirect changes the scheme, host or port.
+
+Bindings name an environment variable or a `token_command`, never a token. `token_command` gets `SDD_CRED_HOST` and `SDD_CRED_SCOPE`, so an OIDC or zero-trust broker can mint a short-lived, narrowly scoped token. Plugins written without the kit SHOULD follow the same rules. See [providers.md](providers.md#credentials).
+
+sdd sets `SDD_TRACKER_DEADLINE` (RFC 3339) in the plugin's environment: the moment sdd stops waiting. A plugin should not start a retry it cannot finish by then.
+
+## Writing a provider with the kit
+
+Go providers use `github.com/millerscout/sdd/providers/kit`. It imports only the protocol package `github.com/millerscout/sdd/tracker` (standard library only), not the rest of sdd.
+
+```go
+type Provider struct{ client *kit.Client }
+
+func (p *Provider) Init(config json.RawMessage) error {
+	// decode config, then:
+	c, err := kit.NewClient(apiURL, project, "sdd-tracker-acme", kit.BearerAuth)
+	p.client = c
+	return err
+}
+// Capabilities, ListIssuesPage (returns a cursor), GetIssue, CreateIssue
+// (idempotent per client_ref), UpdateIssue, TransitionIssue, Comment …
+
+func main() { kit.Main(kit.Tracker(&Provider{})) }
+```
+
+What the kit provides:
+- **`kit.Serve`/`kit.Main`:** checks the envelope, dispatches by `kind` and `op`, and turns errors into adapter errors. A plain Go error becomes `invalid`, and an `*tracker.AdapterError` is returned as it is.
+- **`kit.Client`:** maps HTTP statuses to error codes, retries a failed GET/PUT/PATCH once within the deadline, and refuses cross-host redirects.
+- **`tracker.EncodeMarker`/`DecodeMarker`:** keep `client_ref` and `sdd` links in a description when the backend has no field for them.
+
+Test with `kittest.Run(t, provider, config)` against a fake of the API. It runs the same conformance sequence as `sdd tracker check --allow-writes`. The GitHub and Jira providers in `providers/` are worked examples, with their API fakes in `providers/*/fakeapi`.
 
 ## Checking a plugin
 

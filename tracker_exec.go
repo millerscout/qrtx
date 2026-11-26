@@ -82,6 +82,7 @@ func (e *execTracker) run(op string, args any) (json.RawMessage, error) {
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = e.stderr
+	cmd.Env = append(os.Environ(), "SDD_TRACKER_DEADLINE="+time.Now().Add(e.timeout).UTC().Format(time.RFC3339Nano))
 	cmd.WaitDelay = time.Second
 	runErr := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
@@ -156,7 +157,7 @@ func (e *execTracker) Capabilities() (TrackerCaps, error) {
 }
 
 func (e *execTracker) checkIssue(op string, is Issue) (Issue, error) {
-	if err := is.validate(); err != nil {
+	if err := is.Validate(); err != nil {
 		return Issue{}, e.fail(op, &AdapterError{Code: ErrCodeUnavailable, Message: "invalid issue in result: " + err.Error()})
 	}
 	return is, nil

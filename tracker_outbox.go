@@ -239,7 +239,7 @@ func DrainOutbox(repoRoot string, t *Tracker) DrainReport {
 			e.Attempts++
 			e.LastError = err.Error()
 			code := adapterCode(err)
-			if code != "" && !(&AdapterError{Code: code}).retryable() {
+			if code != "" && !(&AdapterError{Code: code}).Retryable() {
 				e.Failed = true
 				rep.Warnings = append(rep.Warnings, fmt.Sprintf("outbox %d (%s %s) failed and will not be retried: %v; drop it with `%s tracker outbox --drop %d`", e.Seq, e.Op, issueKey, err, CLIName, e.Seq))
 			}

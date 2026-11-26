@@ -83,7 +83,7 @@ type IssueTracker interface {
 sdd.SetIssueTracker(myTracker)
 ```
 
-A host tracker replaces the backend named in `.sdd.yaml` (`tracker.backend`). Without one, sdd uses the built-in `file` backend (`sdd/issues.jsonl`), or runs `sdd-tracker-<name>` from `PATH` as described in [tracker-protocol.md](tracker-protocol.md). The interface and the protocol may change before v1.
+The protocol types live in package `github.com/millerscout/sdd/tracker` (standard library only). The root package re-exports them as aliases (`sdd.Issue` is `tracker.Issue`). Provider plugins use `providers/kit` and `tracker` without the root package. A host tracker replaces the backend named in `.sdd.yaml` (`tracker.backend`). Without one, sdd uses the built-in `file` backend (`sdd/issues.jsonl`), or runs `sdd-tracker-<name>` from `PATH` as described in [tracker-protocol.md](tracker-protocol.md). The interface and the protocol may change before v1.
 
 ## Stability
 

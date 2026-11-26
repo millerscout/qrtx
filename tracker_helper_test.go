@@ -72,6 +72,7 @@ func fakeTrackerMain() int {
 	fmt.Fprintln(f, req.Op)
 	f.Close()
 	mode := fakeMode()
+	_ = os.WriteFile(filepath.Join(fakeDir(), "deadline"), []byte(os.Getenv("SDD_TRACKER_DEADLINE")), 0o644)
 	switch mode {
 	case "down":
 		return fakeReply(nil, ErrCodeUnavailable)
@@ -118,7 +119,7 @@ func fakeTrackerMain() int {
 		var in CreateIssueInput
 		_ = json.Unmarshal(req.Args, &in)
 		for _, is := range s.Issues {
-			if in.ClientRef != "" && is.ClientRef == in.ClientRef {
+			if mode != "nodedupe" && in.ClientRef != "" && is.ClientRef == in.ClientRef {
 				return fakeReply(is, "")
 			}
 		}
@@ -141,7 +142,7 @@ func fakeTrackerMain() int {
 		}
 		var refs []SDDRef
 		_ = json.Unmarshal(a["add_sdd"], &refs)
-		s.Issues[i].addRefs(refs)
+		s.Issues[i].AddRefs(refs)
 		if t := str("title"); t != "" {
 			s.Issues[i].Title = t
 		}

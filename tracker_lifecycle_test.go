@@ -292,8 +292,8 @@ func TestTrackerDeferred(t *testing.T) {
 		}
 		setFakeMode(t, dir, "")
 		DrainOutbox(root, openT(t, root))
-		if n, _ := QueueDeferredIssues(root, openT(t, root), "demo"); n != 2 {
-			t.Fatalf("third run queued %d", n)
+		if n, _ := QueueDeferredIssues(root, openT(t, root), "demo"); n != 0 {
+			t.Fatalf("third run queued %d; both bullets already have issues", n)
 		}
 		DrainOutbox(root, openT(t, root))
 		if got := len(loadFake().Issues); got != 2 {
@@ -430,4 +430,23 @@ func TestProposeContextBacklog(t *testing.T) {
 			t.Fatal("propose-context created the state directory")
 		}
 	})
+}
+
+func TestTrackerDeferredSkipsExisting(t *testing.T) {
+	root, dir := fakeRepo(t, "")
+	readyChange(t, root, "demo", nil, "one")
+	tr := openT(t, root)
+	if _, err := QueueDeferredIssues(root, tr, "demo"); err != nil {
+		t.Fatal(err)
+	}
+	DrainOutbox(root, tr)
+	setFakeMode(t, dir, "nodedupe")
+	tr = openT(t, root)
+	if n, err := QueueDeferredIssues(root, tr, "demo"); err != nil || n != 0 {
+		t.Fatalf("re-run queued %d (%v)", n, err)
+	}
+	DrainOutbox(root, tr)
+	if got := len(loadFake().Issues); got != 1 {
+		t.Fatalf("want 1 issue, got %d", got)
+	}
 }

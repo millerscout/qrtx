@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTrackerExec(t *testing.T) {
@@ -20,6 +21,11 @@ func TestTrackerExec(t *testing.T) {
 	}
 	if log := fakeLog(dir); len(log) < 2 || log[0] != OpCapabilities {
 		t.Fatalf("capabilities must come first: %v", log)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "deadline")); len(b) == 0 {
+		t.Fatal("plugin did not get SDD_TRACKER_DEADLINE")
+	} else if d, err := time.Parse(time.RFC3339Nano, string(b)); err != nil || time.Until(d) > 3*time.Second {
+		t.Fatalf("deadline %q %v (timeout is 2s)", b, err)
 	}
 
 	t.Run("no shared protocol", func(t *testing.T) {

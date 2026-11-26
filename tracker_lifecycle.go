@@ -207,10 +207,24 @@ func QueueDeferredIssues(repoRoot string, t *Tracker, slug string) (int, error) 
 		return 0, err
 	}
 	repo := RepoName(repoRoot)
+	// Skip bullets that already have an issue, so a re-run long after the
+	// first one does not depend on the backend's idempotency window. A failed
+	// list keeps the old behaviour: the backend's client_ref check.
+	have := map[string]bool{}
+	if existing, err := t.ListIssues(IssueFilter{Change: slug}); err == nil {
+		for _, is := range existing {
+			if is.ClientRef != "" {
+				have[is.ClientRef] = true
+			}
+		}
+	}
 	var entries []OutboxEntry
 	for _, b := range deferredBullets(string(raw)) {
 		title := truncateRunes(strings.ReplaceAll(b, "`", ""), 120)
 		cref := NewClientRef(repo, slug, "deferred\x00"+b, "")
+		if have[cref] {
+			continue
+		}
 		in := CreateIssueInput{
 			Title:       title,
 			Description: b + "\n\nDeferred from sdd change `" + slug + "`.",

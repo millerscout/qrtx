@@ -13,32 +13,36 @@ import (
 )
 
 var (
-	buildOnce sync.Once
-	builtSDD  string
-	buildErr  error
+	buildMu sync.Mutex
+	built   = map[string]string{}
+	binDir  string
 )
 
-// sddBinary builds cmd/sdd once so git can run it as the merge driver.
-func sddBinary(t *testing.T) string {
+// buildBin builds ../cmd/<name> once into a shared temp bin dir.
+func buildBin(t *testing.T, name string) string {
 	t.Helper()
-	buildOnce.Do(func() {
+	buildMu.Lock()
+	defer buildMu.Unlock()
+	if p, ok := built[name]; ok {
+		return p
+	}
+	if binDir == "" {
 		dir, err := os.MkdirTemp("", "sdd-bin-")
 		if err != nil {
-			buildErr = err
-			return
+			t.Fatal(err)
 		}
-		builtSDD = filepath.Join(dir, "sdd")
-		out, err := exec.Command("go", "build", "-o", builtSDD, "../cmd/sdd").CombinedOutput()
-		if err != nil {
-			buildErr = err
-			t.Logf("%s", out)
-		}
-	})
-	if buildErr != nil {
-		t.Fatal(buildErr)
+		binDir = dir
 	}
-	return builtSDD
+	p := filepath.Join(binDir, name)
+	if out, err := exec.Command("go", "build", "-o", p, "../cmd/"+name).CombinedOutput(); err != nil {
+		t.Fatalf("build %s: %v\n%s", name, err, out)
+	}
+	built[name] = p
+	return p
 }
+
+// sddBinary builds cmd/sdd so git can run it as the merge driver.
+func sddBinary(t *testing.T) string { return buildBin(t, "sdd") }
 
 func gitEnv(repo string) []string {
 	return append(os.Environ(),

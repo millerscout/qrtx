@@ -1,11 +1,12 @@
 package sdd
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/millerscout/sdd/tracker"
 )
 
 // Tracker is the issue tracker a repository uses: the backend .sdd.yaml
@@ -118,13 +119,6 @@ func projectName(repoRoot string, cfg RepoConfig) string {
 	return filepath.Base(abs)
 }
 
-// CheckResult is one operation of a conformance run.
-type CheckResult struct {
-	Op     string `json:"op"`
-	OK     bool   `json:"ok"`
-	Detail string `json:"detail,omitempty"`
-}
-
 // CheckTracker runs the conformance checks against backend ("" = configured).
 // The file backend is checked on a temporary copy. Other backends are only
 // read unless allowWrites is set.
@@ -157,79 +151,21 @@ func CheckTracker(repoRoot, backend string, allowWrites bool) ([]CheckResult, er
 	} else if impl, err = t.For(backend); err != nil {
 		return nil, err
 	}
-	var out []CheckResult
-	record := func(op string, err error, detail string) bool {
-		r := CheckResult{Op: op, OK: err == nil, Detail: detail}
-		if err != nil {
-			r.Detail = err.Error()
+	// A plugin backend gets the retried create 10s later, as an outbox retry
+	// on a later command would; hosted lists lag behind a new issue.
+	delay := time.Duration(0)
+	if _, ok := impl.(*execTracker); ok {
+		delay = checkRetryDelay
+		if d, err := time.ParseDuration(os.Getenv("SDD_CHECK_RETRY_DELAY")); err == nil {
+			delay = d
 		}
-		out = append(out, r)
-		return err == nil
 	}
-	caps, err := impl.Capabilities()
-	if !record(OpCapabilities, err, strings.Join(caps.Ops, ",")) {
-		return out, nil
-	}
-	if caps.Has(OpListIssues) {
-		list, err := impl.ListIssues(IssueFilter{Limit: 5})
-		record(OpListIssues, err, fmt.Sprintf("%d issues", len(list)))
-	}
-	if !allowWrites || !caps.Has(OpCreateIssue) {
-		return out, nil
-	}
-	ref := NewClientRef("sdd-check", "", "sdd tracker check", NewNonce())
-	in := CreateIssueInput{Title: "sdd tracker check " + time.Now().UTC().Format(time.RFC3339), Description: "Created by `sdd tracker check`; safe to delete.", ClientRef: ref}
-	first, err := impl.CreateIssue(in)
-	if !record(OpCreateIssue, err, first.ID) {
-		return out, nil
-	}
-	second, err := impl.CreateIssue(in)
-	if err == nil && second.ID != first.ID {
-		err = fmt.Errorf("retried create with the same client_ref made a second issue (%s, %s)", first.ID, second.ID)
-	}
-	record(OpCreateIssue+" (idempotent)", err, "")
-	if caps.Has(OpGetIssue) {
-		got, err := impl.GetIssue(first.ID)
-		if err == nil && got.ID != first.ID {
-			err = fmt.Errorf("got %s", got.ID)
-		}
-		record(OpGetIssue, err, "")
-	}
-	if caps.Has(OpUpdateIssue) {
-		title := in.Title + " (updated)"
-		got, err := impl.UpdateIssue(first.ID, UpdateIssueInput{Title: &title, AddRefs: []SDDRef{{Repo: "sdd-check", Change: "check"}}})
-		if err == nil && (got.Title != title || len(got.Refs) == 0) {
-			err = fmt.Errorf("update not applied or sdd refs not kept (title %q, %d refs)", got.Title, len(got.Refs))
-		}
-		record(OpUpdateIssue, err, "")
-	}
-	if caps.Has(OpTransitionIssue) {
-		got, err := impl.TransitionIssue(first.ID, CategoryStarted, "")
-		if err == nil && got.Status.Category != CategoryStarted {
-			err = fmt.Errorf("category %s after transition to started", got.Status.Category)
-		}
-		record(OpTransitionIssue, err, "")
-	}
-	if caps.Has(OpListIssues) {
-		list, err := impl.ListIssues(IssueFilter{})
-		found := false
-		for _, is := range list {
-			found = found || is.ID == first.ID
-		}
-		if err == nil && !found {
-			err = fmt.Errorf("created issue %s missing from list_issues", first.ID)
-		}
-		record(OpListIssues+" (after create)", err, "")
-	}
-	if caps.Has(OpComment) {
-		record(OpComment, impl.Comment(first.ID, "sdd tracker check", NewNonce()), "")
-	}
-	if caps.Has(OpTransitionIssue) {
-		_, err := impl.TransitionIssue(first.ID, CategoryCanceled, "")
-		record(OpTransitionIssue+" (cleanup: canceled)", err, "")
-	}
-	return out, nil
+	return tracker.ConformanceWith(impl, allowWrites, delay), nil
 }
+
+// checkRetryDelay is how long `tracker check` waits before retrying a create
+// against a plugin backend. Tests shorten it.
+var checkRetryDelay = 10 * time.Second
 
 const maxBacklog = 20
 

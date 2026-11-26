@@ -125,11 +125,11 @@ func TestTrackerSchema(t *testing.T) {
 				t.Fatalf("Issue key %q is not in issue.json", k)
 			}
 		}
-		if err := is.validate(); err != nil {
+		if err := is.Validate(); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := (Issue{ID: "1", Title: "x", Status: IssueStatus{Category: "done"}}).validate(); err == nil {
+	if err := (Issue{ID: "1", Title: "x", Status: IssueStatus{Category: "done"}}).Validate(); err == nil {
 		t.Fatal("bad category accepted")
 	}
 	b, _ := json.Marshal(AdapterRequest{Protocol: AdapterProtocol, Kind: "tracker", Op: OpListIssues, Args: json.RawMessage(`{}`)})

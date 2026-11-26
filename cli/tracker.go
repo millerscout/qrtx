@@ -12,7 +12,7 @@ import (
 	"github.com/millerscout/sdd"
 )
 
-const trackerUsage = "Usage: %s tracker list [--status <category>] [--change <slug>] [--all] [--json] | get <ref> [--json] | add <title> [--description <text>] | close <ref> [--canceled] | start <ref> <slug> | from-deferred --change <slug> | outbox [--json] [--drop <seq>] | check [--backend <name>] [--allow-writes] [--json] | init | merge-driver <base> <ours> <theirs>\n"
+const trackerUsage = "Usage: %s tracker list [--status <category>] [--change <slug>] [--all] [--json] | get <ref> [--json] | add <title> [--description <text>] | close <ref> [--canceled] | start <ref> <slug> | from-deferred --change <slug> | outbox [--json] [--drop <seq>] | check [--backend <name>] [--allow-writes] [--json] | init | setup <github|jira> [flags] | merge-driver <base> <ours> <theirs>\n"
 
 func runTracker(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
@@ -32,6 +32,10 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 	}
 	if args[0] == "init" {
 		return trackerInit(root, stdout)
+	}
+	if args[0] == "setup" {
+		_, err := trackerSetup(root, args[1:], stdout)
+		return err
 	}
 	t, err := sdd.OpenTracker(root)
 	if err != nil {
@@ -219,36 +223,56 @@ func trackerOutbox(root string, args []string, stdout, stderr io.Writer) error {
 }
 
 func trackerInit(root string, stdout io.Writer) error {
+	action, driver, err := registerMergeDriver(root)
+	if err != nil {
+		return err
+	}
+	if action == "unchanged" {
+		fmt.Fprintf(stdout, "unchanged merge driver sdd-issues: %s\n", driver)
+		return nil
+	}
+	fmt.Fprintf(stdout, "registered merge driver sdd-issues: %s\n", driver)
+	return nil
+}
+
+// registerMergeDriver writes the .gitattributes line and the git config for
+// the issues.jsonl merge driver. It reports "unchanged" when both are in place.
+func registerMergeDriver(root string) (action, driver string, err error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", "", err
+	}
+	driver = fmt.Sprintf("%q tracker merge-driver %%O %%A %%B", exe)
 	attr := filepath.Join(root, ".gitattributes")
 	line := sdd.IssuesFile + " merge=sdd-issues"
 	raw, err := os.ReadFile(attr)
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return "", "", err
 	}
+	action = "unchanged"
 	if !strings.Contains(string(raw), line) {
 		text := string(raw)
 		if text != "" && !strings.HasSuffix(text, "\n") {
 			text += "\n"
 		}
 		if err := os.WriteFile(attr, []byte(text+line+"\n"), 0o644); err != nil {
-			return err
+			return "", "", err
 		}
-		fmt.Fprintf(stdout, "wrote %s\n", attr)
+		action = "created"
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		return err
+	get := exec.Command("git", "config", "--get", "merge.sdd-issues.driver")
+	get.Dir = root
+	if out, err := get.Output(); err == nil && strings.TrimSpace(string(out)) == driver {
+		return action, driver, nil
 	}
-	driver := fmt.Sprintf("%q tracker merge-driver %%O %%A %%B", exe)
 	for _, kv := range [][2]string{{"merge.sdd-issues.name", "sdd issues.jsonl merge"}, {"merge.sdd-issues.driver", driver}} {
 		cmd := exec.Command("git", "config", kv[0], kv[1])
 		cmd.Dir = root
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("git config %s: %v: %s", kv[0], err, strings.TrimSpace(string(out)))
+			return "", "", fmt.Errorf("git config %s: %v: %s", kv[0], err, strings.TrimSpace(string(out)))
 		}
 	}
-	fmt.Fprintf(stdout, "registered merge driver sdd-issues: %s\n", driver)
-	return nil
+	return "created", driver, nil
 }
 
 // trackerMergeDriver is git's merge driver: it merges into ours (%A) and
@@ -314,7 +338,8 @@ func flagValue(args []string, flag string) string {
 	return ""
 }
 
-var valueFlags = map[string]bool{"--status": true, "--change": true, "--description": true, "--backend": true, "--drop": true}
+var valueFlags = map[string]bool{"--status": true, "--change": true, "--description": true, "--backend": true, "--drop": true,
+	"--repo": true, "--api-url": true, "--url": true, "--project": true, "--issue-type": true, "--token-env": true, "--email-env": true, "--token-command": true, "--tracker": true}
 
 // positionals returns the arguments that are neither flags nor flag values.
 func positionals(args []string, extraValueFlags ...string) []string {

@@ -13,9 +13,10 @@ sdd/changes/<slug>/phases/*.md        task lists, one per phase
 ```bash
 go install github.com/millerscout/sdd/cmd/sdd@latest
 cd your-project
-sdd skills install          # writes .claude/skills/sdd-{propose,apply,archive}
-sdd constitution init       # optional: sdd/constitution.md, your project's standing rules
+sdd init                    # skills, a starter sdd/constitution.md, the issues merge driver
 ```
+
+`sdd init` is safe to re-run. Add `--tracker github --repo owner/name --token-command "gh auth token"` (or `--tracker jira …`) to connect a tracker as well. See [docs/providers.md](docs/providers.md).
 
 Then, in Claude Code (or any agent that reads `.claude/skills`):
 
@@ -62,6 +63,8 @@ See [`examples/tic-tac-toe`](examples/tic-tac-toe) for a complete planned change
 | `sdd sync-from-code [--package <dir>] [--drifted-only]` | Rewrite contract exports from the code |
 | `sdd skills list` / `install [--dir <dir>] [--force]` | Install the bundled agent skills |
 | `sdd constitution show [--json]` / `init [--force]` | List the project's rules; write a starter `sdd/constitution.md` |
+| `sdd init [--tracker <backend> …]` | Set up a repository or folder: skills, constitution, merge driver, tracker |
+| `sdd tracker setup github\|jira [flags]` | Configure a tracker and bind its credentials |
 | `sdd tracker add` / `list` / `get` / `close` | The project backlog: `sdd/issues.jsonl` by default, or any tracker plugin |
 | `sdd tracker start <ref> <slug>` | Turn an issue into a change and link them both ways |
 | `sdd tracker from-deferred --change <slug>` | Put a change's `## Deferred` work in the backlog |
@@ -78,7 +81,7 @@ sdd tracker start file:sdd-k3f9qa dark-mode
 ```
 
 - **Default backend:** the built-in `file` backend, `sdd/issues.jsonl`, with one JSON issue per line. It is committed with your code, and branches merge cleanly.
-- **Other backends:** to use Jira, GitHub Issues, Linear or anything else, set `tracker.backend: <name>` in `.sdd.yaml` and put `sdd-tracker-<name>` on `PATH`. A plugin is any program that speaks [the tracker protocol](docs/tracker-protocol.md).
+- **Other backends:** GitHub and Jira have first-party plugins (`sdd tracker setup github|jira`, see [docs/providers.md](docs/providers.md)). Anything else works through any `sdd-tracker-<name>` on `PATH` that speaks [the tracker protocol](docs/tracker-protocol.md). Tokens live in your user-level credentials file, bound to a host and an allow-list of repos or projects, never in `.sdd.yaml`.
 - **Links:** a change links its issues under `issues:`, and archiving it marks them completed. Each issue records the repo, project and change that worked on it.
 
 ## Configuration

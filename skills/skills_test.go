@@ -73,3 +73,27 @@ func TestSkillsHaveFrontmatterAndNoHostNames(t *testing.T) {
 		}
 	}
 }
+
+func TestInstallKeep(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := InstallKeep(dir); err != nil {
+		t.Fatal(err)
+	}
+	edited := filepath.Join(dir, "sdd-propose", "SKILL.md")
+	_ = os.WriteFile(edited, []byte("local\n"), 0o644)
+	_ = os.RemoveAll(filepath.Join(dir, "sdd-archive"))
+	res, err := InstallKeep(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, r := range res {
+		got[r.Name] = r.Action
+	}
+	if got["sdd-propose"] != "skipped" || got["sdd-apply"] != "unchanged" || got["sdd-archive"] != "created" {
+		t.Fatalf("%v", got)
+	}
+	if b, _ := os.ReadFile(edited); string(b) != "local\n" {
+		t.Fatal("local edit overwritten")
+	}
+}

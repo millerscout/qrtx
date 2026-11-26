@@ -4,6 +4,16 @@
 
 ### Added
 
+- **First-party tracker plugins `sdd-tracker-github` and `sdd-tracker-jira`** (change `tracker-providers`; unstable until v1). Install them with `go install github.com/millerscout/sdd/cmd/sdd-tracker-{github,jira}@latest`.
+  - **GitHub:** "in progress" is a label; `client_ref` and the sdd links live in a hidden body marker; pull requests are skipped; listing is paged.
+  - **Jira Cloud:** REST v3 with ADF bodies; issues move through workflow transitions; cancelling sets a "Won't Do"-style resolution; idempotency uses a `sdd-cref-` label.
+- **`sdd init`** sets up a repository or folder: skills, constitution, merge driver and, with `--tracker`, the tracker. **`sdd tracker setup github|jira`** writes the `.sdd.yaml` tracker block (keeping comments), binds credentials and runs a read-only check. Both are safe to re-run.
+- **User-level `credentials.yaml`:** binds each tracker API host and an allow-list of repos or projects to a `token_env` or `token_command`. It never holds a literal token. `token_command` gets `SDD_CRED_HOST`/`SDD_CRED_SCOPE` for short-lived scoped tokens. Redirects to another host are refused.
+- **Package `tracker`:** the protocol types, `Conformance` and the marker helpers, using only the standard library. Root `sdd` keeps aliases.
+- **Package `providers/kit` and `kittest`:** for writing providers.
+- **Plugin environment:** sdd passes `SDD_TRACKER_DEADLINE` to plugins.
+- **`from-deferred` duplicates:** `sdd tracker from-deferred` skips bullets whose issue already exists.
+
 - **Project backlog and pluggable issue trackers** (change `tracker-standard`; unstable until v1).
   - `sdd tracker add|list|get|close|start|from-deferred|outbox|check|init|merge-driver`.
   - **Built-in `file` backend:** `sdd/issues.jsonl`, with hash IDs, sorted canonical lines and a per-issue merge driver.

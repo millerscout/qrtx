@@ -3,10 +3,8 @@ package sdd
 import (
 	"bufio"
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base32"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -61,7 +59,7 @@ func (f *fileTracker) load() (lines []*issueLine, bad []string, err error) {
 			bad = append(bad, fmt.Sprintf("%s:%d: %v", IssuesFile, n, err))
 			continue
 		}
-		if err := is.validate(); err != nil {
+		if err := is.Validate(); err != nil {
 			bad = append(bad, fmt.Sprintf("%s:%d: %v", IssuesFile, n, err))
 			continue
 		}
@@ -276,7 +274,7 @@ func (f *fileTracker) UpdateIssue(id string, in UpdateIssueInput) (Issue, error)
 		if in.Labels != nil {
 			is.Labels, changed = in.Labels, true
 		}
-		if is.addRefs(in.AddRefs) {
+		if is.AddRefs(in.AddRefs) {
 			changed = true
 		}
 		return changed, nil
@@ -299,19 +297,6 @@ func (f *fileTracker) TransitionIssue(id, category, native string) (Issue, error
 
 func (f *fileTracker) Comment(id, markdown, clientRef string) error {
 	return &AdapterError{Code: ErrCodeUnsupported, Message: "the file backend keeps no comments"}
-}
-
-// NewNonce returns random hex for one create; retries reuse it.
-func NewNonce() string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}
-
-// NewClientRef is the idempotency key of one create.
-func NewClientRef(repo, change, title, nonce string) string {
-	sum := sha256.Sum256([]byte(repo + "\x00" + change + "\x00" + title + "\x00" + nonce))
-	return hex.EncodeToString(sum[:])[:12]
 }
 
 var idEncoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding(base32.NoPadding)
