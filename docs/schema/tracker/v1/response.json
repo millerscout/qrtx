@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/millerscout/sdd/docs/schema/tracker/v1/response.json",
+  "title": "sdd adapter response (stdout)",
+  "type": "object",
+  "oneOf": [
+    {"required": ["result"]},
+    {"required": ["error"]}
+  ],
+  "properties": {
+    "result": {
+      "description": "capabilities: {protocols, interfaces?, ops, link_types?}; list_issues: {issues, cursor?}; get_issue, create_issue, update_issue, transition_issue: an issue (issue.json); comment: {}."
+    },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"enum": ["not_found", "unsupported", "auth", "invalid", "invalid_transition", "rate_limited", "unavailable"]},
+        "message": {"type": "string"},
+        "retry_after": {"type": "integer", "minimum": 0},
+        "allowed": {"type": "array", "items": {"type": "string"}, "description": "invalid_transition: native statuses the issue can move to."}
+      }
+    }
+  }
+}

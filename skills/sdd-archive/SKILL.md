@@ -14,6 +14,7 @@ Archive after all **Tasks** and **Validate** are `- [x]` and manifest `status: c
 3. Run the project's test suite when runtime code changed, plus any check the constitution (`sdd constitution show`) or the change's **Constitution** lines require before a change is done.
 4. Archive: `sdd change archive <slug> --run-validate`. Add `--quick-check` to run the `quick_check` command from `.sdd.yaml` before the move (opt-in; may be slow).
 5. Report path under `sdd/changes/archive/`, and the package contracts that gained a `## Behaviour` block.
+6. **Tracker:** when the manifest lists `issues:`, archive comments on each linked issue and marks it completed (unless another active change still links it). A tracker failure never stops the archive. If the output says `tracker: <n> pending`, report it and show `sdd tracker outbox`; the next `sdd tracker` command retries.
 
 **Living specs:** archive appends the change's Requirements and Scenarios, with ids prefixed by the slug, to the `## Behaviour` section of each touched package's `contract.sdd.md`. Touched packages are those in `packages:` plus the dirs of cited files that have a contract. It is idempotent, and the `sdd` export block is left untouched. Commit those contract edits with the archive move. The next `sdd change propose-context` shows them as `existing_behaviour`.
 

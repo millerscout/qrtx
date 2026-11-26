@@ -8,6 +8,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if runTestHelper() {
+		return
+	}
 	querySymbolHits = func(string, string, int) []CodeHit { return nil }
 	queryEmbeddingHits = func(string, string, int) []CodeHit { return nil }
 	os.Exit(m.Run())

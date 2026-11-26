@@ -5,7 +5,9 @@ description: Propose a new SDD-native change (planning only) under sdd/changes/<
 
 Propose a new **SDD-native** change under `sdd/changes/<slug>/`. Planning only — do not edit production implementation code in this workflow.
 
-**Input**: Kebab-case slug after `/sdd-propose`, or a short description (derive slug from it).
+**Input**: Kebab-case slug after `/sdd-propose`, or a short description (derive slug from it), or a tracker issue ref (`file:sdd-k3f9qa`, `github:123`, or a bare id for the configured backend).
+
+**From an issue:** when the input is an issue ref, pick the slug from the issue's outcome and run `sdd tracker start <ref> <slug>` instead of `sdd change new <slug>`. It creates the change, fills **User request** from the issue, links the issue under `issues:` and marks it started. `sdd tracker list` shows the open backlog, and `sdd change propose-context` lists it as `backlog`: reuse a matching issue instead of planning the same work twice.
 
 **Planning boundary**: Author or update `change.sdd.md`, linked `contract.sdd.md` packages, and tasks. Stop when planning artifacts are coherent. Implementation is `/sdd-apply`.
 
@@ -85,7 +87,7 @@ Empty output and exit 0 means no active changes; scaffold next. Do not initialis
 
 8. **Finish propose** — run `sdd change finish-propose --change <slug>`. Propose is **not** done until this exits 0 (runs propose-context warnings, **verify**, and **score** JSON).
 
-9. **Summarize** — Slug, acceptance one-liner, deferred slugs, next task; suggest `/sdd-apply`.
+9. **Summarize** — Slug, acceptance one-liner, deferred slugs, next task; suggest `/sdd-apply`. When **Deferred** names work for later, offer `sdd tracker from-deferred --change <slug>` to put it in the backlog.
 
 **No plannable goal**: answer in prose; offer slug + goal; scaffold after confirm.
 

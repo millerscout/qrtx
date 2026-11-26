@@ -57,7 +57,9 @@ type ProposeContextReport struct {
 	GraphNeighbors []GraphNeighbor  `json:"graph_neighbors"`
 	Issues         *IssuesSummary   `json:"issues,omitempty"`
 	KnownFixes     []KnownFix       `json:"known_fixes,omitempty"`
-	Warnings       []string         `json:"warnings"`
+	// Backlog is up to 20 open issues from the repository's tracker.
+	Backlog  []Issue  `json:"backlog,omitempty"`
+	Warnings []string `json:"warnings"`
 	// ExistingBehaviour is what archived changes promised for the touched packages.
 	ExistingBehaviour []ExistingBehaviour `json:"existing_behaviour,omitempty"`
 	// Constitution is the project's rule files and their rules.
@@ -146,6 +148,11 @@ func ProposeContext(repoRoot, slug string, opts ProposeContextOpts) (ProposeCont
 	}
 	if hints := knownFixes(project, maxKnownFixes); len(hints) > 0 {
 		out.KnownFixes = hints
+	}
+	if backlog, warn := proposeBacklog(repoRoot); warn != "" {
+		out.Warnings = append(out.Warnings, warn)
+	} else if len(backlog) > 0 {
+		out.Backlog = backlog
 	}
 	out.Score = proposeBand(req, bullets, len(out.Overlaps) > 0)
 	out.CodeHits = collectCodeHits(out.Score, project, req)

@@ -17,7 +17,7 @@ import (
 // change, skills or constitution.
 func Run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution|tracker\n", sdd.CLIName)
 		return fmt.Errorf("missing subcommand")
 	}
 	if args[0] == "change" {
@@ -28,6 +28,9 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	}
 	if args[0] == "constitution" {
 		return runConstitution(args[1:], stdout, stderr)
+	}
+	if args[0] == "tracker" {
+		return runTracker(args[1:], stdout, stderr)
 	}
 	switch args[0] {
 	case "graph":
@@ -106,7 +109,7 @@ func Run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	default:
-		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution|tracker\n", sdd.CLIName)
 		return fmt.Errorf("unknown subcommand: %s", args[0])
 	}
 }
@@ -320,10 +323,22 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 				return err
 			}
 		}
+		linked := false
+		if man, err := sdd.ParseChangeFile(root, strings.TrimSpace(slug)); err == nil {
+			linked = len(man.Issues) > 0
+		}
 		if err := sdd.ArchiveChange(root, slug); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(stdout, "archived sdd/changes/%s\n", strings.TrimSpace(slug))
+		if linked {
+			t, err := sdd.OpenTracker(root)
+			if err != nil {
+				fmt.Fprintf(stderr, "warning: tracker: %v; the writes stay queued (%s tracker outbox)\n", err, sdd.CLIName)
+				return nil
+			}
+			reportDrain(sdd.DrainOutbox(root, t), stderr)
+		}
 		return nil
 	default:
 		fmt.Fprintf(stderr, "Usage: %s change new|list|status|verify|score|review-packet|lint-active|propose-context|finish-propose|finish-apply|run-validate|archive\n", sdd.CLIName)

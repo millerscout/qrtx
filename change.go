@@ -26,6 +26,9 @@ type ChangeManifest struct {
 	Name     string   `yaml:"name"`
 	Status   string   `yaml:"status"`
 	Packages []string `yaml:"packages"`
+	// Issues lists linked tracker issues as <backend>:<id> (or bare ids for
+	// the configured backend). Archive completes them. Unstable until v1.
+	Issues []string `yaml:"issues,omitempty"`
 }
 
 // ChangeSummary is one active SDD change for UI/CLI.
@@ -336,14 +339,39 @@ func ArchiveChange(repoRoot, slug string) error {
 	if _, err := os.Stat(dest); err == nil {
 		return fmt.Errorf("archive destination already exists: %s", dest)
 	}
+	// Queue the tracker writes before the move; the CLI sends them after it.
+	queued, err := queueArchiveTracker(repoRoot, slug, man, filepath.ToSlash(filepath.Join(changesDirName, archiveDirName, date+"-"+slug)), countRequirements(repoRoot, slug))
+	if err != nil {
+		return fmt.Errorf("tracker outbox: %w", err)
+	}
 	// Keep what the change promised in the touched package contracts.
 	if _, err := promoteBehaviour(repoRoot, slug, date); err != nil {
+		_ = removeOutbox(repoRoot, queued)
 		return fmt.Errorf("promote behaviour: %w", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		_ = removeOutbox(repoRoot, queued)
 		return err
 	}
-	return os.Rename(src, dest)
+	if err := os.Rename(src, dest); err != nil {
+		_ = removeOutbox(repoRoot, queued)
+		return err
+	}
+	return nil
+}
+
+func countRequirements(repoRoot, slug string) int {
+	raw, err := os.ReadFile(changeFilePath(repoRoot, slug))
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, line := range strings.Split(sectionMarkdown(string(raw), "Requirements"), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "- Q") {
+			n++
+		}
+	}
+	return n
 }
 
 // ensureChangesStore creates sdd/changes if missing.

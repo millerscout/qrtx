@@ -68,6 +68,23 @@ sdd.SecondReader = func(prompt string) (string, error) { … }
 
 With neither set, unlabelled paragraphs become phases.
 
+### `IssueTracker` (unstable)
+
+```go
+type IssueTracker interface {
+	Capabilities() (sdd.TrackerCaps, error)
+	ListIssues(f sdd.IssueFilter) ([]sdd.Issue, error)
+	GetIssue(id string) (sdd.Issue, error)
+	CreateIssue(in sdd.CreateIssueInput) (sdd.Issue, error)   // idempotent per in.ClientRef
+	UpdateIssue(id string, in sdd.UpdateIssueInput) (sdd.Issue, error)
+	TransitionIssue(id, category, native string) (sdd.Issue, error)
+	Comment(id, markdown, clientRef string) error
+}
+sdd.SetIssueTracker(myTracker)
+```
+
+A host tracker replaces the backend named in `.sdd.yaml` (`tracker.backend`). Without one, sdd uses the built-in `file` backend (`sdd/issues.jsonl`), or runs `sdd-tracker-<name>` from `PATH` as described in [tracker-protocol.md](tracker-protocol.md). The interface and the protocol may change before v1.
+
 ## Stability
 
-Before v1, only the core lifecycle API and these host hooks are stable. The package doc lists them. Status payload helpers (`StatusMap`, `ChangesMap`, …) and the propose-agent helpers (`ProposeBand`, `Regression*`, `WriteRoadmap`, …) may change in any v0 release.
+Before v1, only the core lifecycle API and these host hooks are stable. The package doc lists them. Status payload helpers (`StatusMap`, `ChangesMap`, …), the tracker API (`IssueTracker`, `SetIssueTracker`, `OpenTracker`, …) and the propose-agent helpers (`ProposeBand`, `Regression*`, `WriteRoadmap`, …) may change in any v0 release.

@@ -62,6 +62,24 @@ See [`examples/tic-tac-toe`](examples/tic-tac-toe) for a complete planned change
 | `sdd sync-from-code [--package <dir>] [--drifted-only]` | Rewrite contract exports from the code |
 | `sdd skills list` / `install [--dir <dir>] [--force]` | Install the bundled agent skills |
 | `sdd constitution show [--json]` / `init [--force]` | List the project's rules; write a starter `sdd/constitution.md` |
+| `sdd tracker add` / `list` / `get` / `close` | The project backlog: `sdd/issues.jsonl` by default, or any tracker plugin |
+| `sdd tracker start <ref> <slug>` | Turn an issue into a change and link them both ways |
+| `sdd tracker from-deferred --change <slug>` | Put a change's `## Deferred` work in the backlog |
+| `sdd tracker outbox` / `check` / `init` | Pending tracker writes; plugin conformance check; register the `issues.jsonl` merge driver |
+
+## Backlog and issue trackers
+
+Work that is not a change yet lives in a tracker:
+
+```bash
+sdd tracker init                         # once per clone: registers the issues.jsonl merge driver
+sdd tracker add "Dark-mode toggle"       # added file:sdd-k3f9qa
+sdd tracker start file:sdd-k3f9qa dark-mode
+```
+
+- **Default backend:** the built-in `file` backend, `sdd/issues.jsonl`, with one JSON issue per line. It is committed with your code, and branches merge cleanly.
+- **Other backends:** to use Jira, GitHub Issues, Linear or anything else, set `tracker.backend: <name>` in `.sdd.yaml` and put `sdd-tracker-<name>` on `PATH`. A plugin is any program that speaks [the tracker protocol](docs/tracker-protocol.md).
+- **Links:** a change links its issues under `issues:`, and archiving it marks them completed. Each issue records the repo, project and change that worked on it.
 
 ## Configuration
 

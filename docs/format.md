@@ -9,6 +9,7 @@
 name: <slug>
 status: planning        # planning | complete
 packages: []            # package dirs with a contract.sdd.md that this change touches
+issues: ["file:sdd-k3f9qa"]  # optional: linked tracker issues, <backend>:<id>
 ```
 ````
 
@@ -99,3 +100,18 @@ scenarios:
 ````
 
 `sdd verify-ast` reports drift between `exports` and the package's exported Go declarations; `sdd sync-from-code` rewrites `exports` from the code. `## Behaviour` is appended by `sdd change archive`, with each id prefixed by the change slug.
+
+## Issues: `sdd/issues.jsonl`
+
+The built-in tracker backend keeps one issue per line, in the schema of [`schema/tracker/v1/issue.json`](schema/tracker/v1/issue.json):
+
+```json
+{"client_ref":"3f9c0a1b2c3d","id":"sdd-k3f9qa","sdd":[{"change":"dark-mode","project":"shop","repo":"github.com/acme/shop"}],"status":{"category":"started"},"title":"Dark-mode toggle","updated_at":"2026-11-26T12:00:00Z"}
+```
+
+- **Order:** lines are sorted by `id`, and each line has its keys in sorted order. sdd rewrites only the line of the issue it changes.
+- **IDs:** an `id` is `sdd-` plus six characters of a hash, so two branches adding issues do not collide.
+- **Merging:** `sdd tracker init` registers a merge driver that merges two branches issue by issue.
+- **Hand edits:** you may edit the file by hand. sdd skips a malformed line with a warning (`sdd/issues.jsonl:<line>`) and refuses to rewrite the file until you fix it.
+
+See [tracker-protocol.md](tracker-protocol.md) for other backends.

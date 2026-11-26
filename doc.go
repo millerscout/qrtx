@@ -19,6 +19,8 @@
 //
 // Everything else is unstable and may change in any v0 release. That
 // includes the status and UI payload helpers (StatusForRepo, StatusMap,
-// ChangesMap, PlanningMap, Merge*IntoStatus) and the propose-agent helpers
+// ChangesMap, PlanningMap, Merge*IntoStatus), the issue tracker API (Issue,
+// IssueTracker, SetIssueTracker, OpenTracker, StartFromIssue, DrainOutbox,
+// MergeIssues and the sdd.adapter/v1 types) and the propose-agent helpers
 // (ProposeBand, Regression*, WriteRoadmap, AcceptanceEcho and similar).
 package sdd

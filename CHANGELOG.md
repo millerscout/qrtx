@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Project backlog and pluggable issue trackers** (change `tracker-standard`; unstable until v1).
+  - `sdd tracker add|list|get|close|start|from-deferred|outbox|check|init|merge-driver`.
+  - **Built-in `file` backend:** `sdd/issues.jsonl`, with hash IDs, sorted canonical lines and a per-issue merge driver.
+  - **Plugin backends:** any `sdd-tracker-<name>` on `PATH` that speaks `sdd.adapter/v1`. The contract is in `docs/tracker-protocol.md` and `docs/schema/tracker/v1/`.
+  - **Manifest field `issues:`:** links tracker issues to a change. `change archive` comments on each linked issue and completes it, unless another active change still links it. The writes go through a crash-safe outbox, so a tracker failure never blocks the archive.
+  - **`.sdd.yaml` keys:** `project:` and `tracker:` (`backend`, `config`, `status_map`, `mirror`, `comments`, `timeout`).
+  - **`propose-context` JSON:** gains `backlog`, up to 20 open issues.
+
 ## v0.4.2 — 2026-11-26
 
 ### Added
