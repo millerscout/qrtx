@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.1 — 2026-11-26
+
+### Fixed
+
+- The contract graph walk (`sdd graph`, `.sdd-graph.json`) now skips every dot-directory (`.git`, `.claude/worktrees`, `.theia`, ...). Before, contracts in a hidden folder, such as a stale worktree copy, were listed as packages.
+
 ## v0.3.0 — 2026-11-25
 
 ### Changed (breaking for JSON readers)

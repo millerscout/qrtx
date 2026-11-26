@@ -24,6 +24,7 @@ type GraphEdge struct {
 }
 
 // FindContractPackages lists repo-relative dirs containing contract.sdd.md.
+// It skips dot-directories, vendor and node_modules.
 func FindContractPackages(repoRoot string) ([]string, error) {
 	var out []string
 	err := filepath.Walk(repoRoot, func(path string, info os.FileInfo, err error) error {
@@ -31,8 +32,17 @@ func FindContractPackages(repoRoot string) ([]string, error) {
 			return err
 		}
 		if info.IsDir() {
-			switch info.Name() {
-			case ".git", "vendor", "node_modules":
+			if path == repoRoot {
+				return nil
+			}
+			name := info.Name()
+			// Skip hidden dirs (.git, .claude/worktrees, .theia, ...): they hold
+			// tool state or stale copies of the tree, not project contracts.
+			if strings.HasPrefix(name, ".") {
+				return filepath.SkipDir
+			}
+			switch name {
+			case "vendor", "node_modules":
 				return filepath.SkipDir
 			}
 			return nil
