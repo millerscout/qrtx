@@ -1,5 +1,6 @@
-# Build output
+# Build output (the `sdd` binary; the sdd/ planning directory stays tracked)
 /sdd
+!/sdd/
 *.test
 *.out
 
