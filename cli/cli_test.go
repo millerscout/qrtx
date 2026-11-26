@@ -146,3 +146,45 @@ func TestConstitutionCommands(t *testing.T) {
 		t.Fatalf("propose-context should carry the constitution: %q %v", out, err)
 	}
 }
+
+// TestChangeScoreKeys checks that `change score` and `change finish-propose` print the same keys,
+// the old ones kept and the task-path counts added.
+func TestChangeScoreKeys(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv(sdd.EnvRepo, root)
+	src := filepath.Join("..", "testdata", "fixtures", "sdd_manifest_quality", "intent-good", "sdd", "changes", "intent-good", "change.sdd.md")
+	raw, err := os.ReadFile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, "sdd", "changes", "intent-good")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "change.sdd.md"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	keys := []string{"slug", "score", "max_score", "verify_ok", "verify_err", "spec_depth", "tasks_paths_total", "tasks_paths_observed"}
+	for _, cmd := range []string{"score", "finish-propose"} {
+		out, _, err := run(t, "change", cmd, "--change", "intent-good")
+		if err != nil {
+			t.Fatalf("%s: %v\n%s", cmd, err, out)
+		}
+		lines := strings.Split(strings.TrimSpace(out), "\n")
+		var got map[string]any
+		if err := json.Unmarshal([]byte(lines[len(lines)-1]), &got); err != nil {
+			t.Fatalf("%s: %q %v", cmd, out, err)
+		}
+		for _, k := range keys {
+			if _, ok := got[k]; !ok {
+				t.Fatalf("%s: missing key %q in %v", cmd, k, got)
+			}
+		}
+		if len(got) != len(keys) {
+			t.Fatalf("%s: keys %v, want exactly %v", cmd, got, keys)
+		}
+		if got["tasks_paths_total"] != float64(1) || got["tasks_paths_observed"] != float64(0) {
+			t.Fatalf("%s: task paths %v/%v want 1/0", cmd, got["tasks_paths_observed"], got["tasks_paths_total"])
+		}
+	}
+}

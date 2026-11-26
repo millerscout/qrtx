@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0 — 2026-11-26
+
+### Changed
+
+- Observed grounding in `ScoreChangeManifest` (`sdd change score`, `finish-propose`) now credits any regular file inside the repository root, not only paths under `internal/`, `scripts/`, `docs/` or `homepage/`. Root-level files such as `manifest_quality.go` now ground. It never credits a directory, a missing file, an absolute path, a path that leaves the root (symlinks resolved on both sides), a plan file under `sdd/`, or a dependency manifest (`go.mod`, `go.sum`, `package.json`, lockfiles and similar). Scores of plans that cite only Aurora-style paths are unchanged.
+
+### Added
+
+- `sdd change score` and `finish-propose` JSON gain `tasks_paths_total` and `tasks_paths_observed`: file paths named in task prose (before `verify:`, roadmap phase files included) and how many of them Observed also cites. They are reported and never added to `score`. Both commands now build their JSON from one helper, `sdd.ScoreJSON`.
+- Golden rows `root-layout-grounded`, `cites-directory`, `self-cite` and `cites-go-mod` lock the grounding rule.
+
 ## v0.3.1 — 2026-11-26
 
 ### Fixed

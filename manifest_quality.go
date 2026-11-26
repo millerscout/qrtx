@@ -10,7 +10,17 @@ import (
 	"text/tabwriter"
 )
 
-var observedFileRE = regexp.MustCompile(`(?:internal|scripts|docs|homepage)/[A-Za-z0-9_./-]+`)
+// pathTokenRE finds path-shaped tokens in plan prose: a slash, or a name with a letter-bearing extension.
+var pathTokenRE = regexp.MustCompile(`[A-Za-z0-9_./~-]+`)
+
+var fileExtRE = regexp.MustCompile(`^[^/]{2,}\.[A-Za-z0-9]*[A-Za-z][A-Za-z0-9]*$`)
+
+// dependencyManifests never ground Observed: every repository has them, so citing one shows no reading.
+var dependencyManifests = map[string]bool{
+	"go.mod": true, "go.sum": true, "package.json": true, "package-lock.json": true,
+	"yarn.lock": true, "pnpm-lock.yaml": true, "Cargo.toml": true, "Cargo.lock": true,
+	"pyproject.toml": true, "poetry.lock": true, "requirements.txt": true, "Gemfile": true, "Gemfile.lock": true,
+}
 
 var validateHarnessRE = regexp.MustCompile(`(?i)(go test|unittest|golden|manual:)`)
 
@@ -24,6 +34,25 @@ type ManifestScore struct {
 	ObservedGrounded bool
 	// Depth counts Scenarios, Decisions and Risks; it is reported, never added to Score.
 	Depth SpecDepth
+	// TasksPathsTotal counts distinct file paths named in task prose (before `verify:`),
+	// phase files included; TasksPathsObserved counts those also cited in Observed.
+	// Both are reported, never added to Score.
+	TasksPathsTotal    int
+	TasksPathsObserved int
+}
+
+// ScoreJSON is the map `change score` and `finish-propose` print, so both keep the same keys.
+func ScoreJSON(sc ManifestScore) map[string]any {
+	return map[string]any{
+		"slug":                 sc.Slug,
+		"score":                sc.Score,
+		"max_score":            sc.MaxScore,
+		"verify_ok":            sc.VerifyOK,
+		"verify_err":           sc.VerifyErr,
+		"spec_depth":           sc.Depth,
+		"tasks_paths_total":    sc.TasksPathsTotal,
+		"tasks_paths_observed": sc.TasksPathsObserved,
+	}
 }
 
 // ScoreChangeManifest scores manifest quality; ValidateChangeManifest rules define verify pass.
@@ -102,6 +131,7 @@ func ScoreChangeManifest(repoRoot, slug string) (ManifestScore, error) {
 		score += 5
 	}
 	impl := sectionMarkdown(text, "Tasks")
+	out.TasksPathsTotal, out.TasksPathsObserved = taskPathCounts(expandPhaseFiles(repoRoot, slug, impl), observed)
 	nonTemplateImpl := 0
 	for _, line := range checkboxLines(impl) {
 		if strings.HasPrefix(taskProse(line), "needs user:") {
@@ -129,18 +159,106 @@ func manualConfirmOfRequest(line, sentence string) bool {
 	return strings.Contains(lower, strings.ToLower(sentence))
 }
 
-func observedPathExists(repoRoot, observed string) bool {
-	for _, match := range observedFileRE.FindAllString(observed, -1) {
-		rel := strings.TrimRight(match, ".,);")
-		if rel == "" {
-			continue
+// taskPathCounts counts distinct paths named in checkbox task prose before `verify:`,
+// leaving out roadmap phase-file links, and how many of them Observed also cites.
+func taskPathCounts(tasks, observed string) (int, int) {
+	cited := map[string]bool{}
+	for _, tok := range planPathTokens(observed) {
+		cited[tok] = true
+	}
+	seen := map[string]bool{}
+	total, hit := 0, 0
+	for _, line := range checkboxLines(tasks) {
+		prose := taskProse(line)
+		if i := strings.Index(strings.ToLower(prose), "verify:"); i >= 0 {
+			prose = prose[:i]
 		}
-		info, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(rel)))
-		if err == nil && !info.IsDir() {
+		for _, tok := range planPathTokens(prose) {
+			if seen[tok] || strings.HasPrefix(tok, "phases/") {
+				continue
+			}
+			seen[tok] = true
+			total++
+			if cited[tok] {
+				hit++
+			}
+		}
+	}
+	return total, hit
+}
+
+func observedPathExists(repoRoot, observed string) bool {
+	for _, tok := range planPathTokens(observed) {
+		if groundedFile(repoRoot, tok) {
 			return true
 		}
 	}
 	return false
+}
+
+// planPathTokens returns path-shaped tokens from prose, cleaned to slash form, in order and without repeats.
+// Absolute paths, home paths, URLs and dot-only tokens are kept out.
+func planPathTokens(text string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, raw := range pathTokenRE.FindAllString(text, -1) {
+		tok := strings.Trim(raw, ".,;:")
+		if tok == "" || strings.HasPrefix(raw, "/") || strings.HasPrefix(tok, "~") || strings.Contains(tok, "...") {
+			continue
+		}
+		if !strings.Contains(tok, "/") && !fileExtRE.MatchString(tok) {
+			continue
+		}
+		clean := filepath.ToSlash(filepath.Clean(filepath.FromSlash(tok)))
+		if clean == "." || clean == ".." {
+			continue
+		}
+		if !seen[clean] {
+			seen[clean] = true
+			out = append(out, clean)
+		}
+	}
+	return out
+}
+
+// groundedFile reports whether rel names a regular source file inside repoRoot, after symlinks,
+// that is neither a plan file under sdd/ nor a dependency manifest.
+func groundedFile(repoRoot, rel string) bool {
+	if filepath.IsAbs(rel) || excludedFromGrounding(rel) {
+		return false
+	}
+	target := filepath.Join(repoRoot, filepath.FromSlash(rel))
+	info, err := os.Stat(target)
+	if err != nil || !info.Mode().IsRegular() {
+		return false
+	}
+	realRoot, err := filepath.EvalSymlinks(repoRoot)
+	if err != nil {
+		return false
+	}
+	realTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		return false
+	}
+	inside, err := filepath.Rel(realRoot, realTarget)
+	if err != nil || inside == ".." || strings.HasPrefix(inside, ".."+string(filepath.Separator)) {
+		return false
+	}
+	return !excludedFromGrounding(filepath.ToSlash(inside))
+}
+
+func excludedFromGrounding(rel string) bool {
+	if rel == "sdd" || strings.HasPrefix(rel, "sdd/") || strings.HasPrefix(rel, "../") || rel == ".." {
+		return true
+	}
+	return dependencyManifests[pathBase(rel)]
+}
+
+func pathBase(rel string) string {
+	if i := strings.LastIndex(rel, "/"); i >= 0 {
+		return rel[i+1:]
+	}
+	return rel
 }
 
 // LintActiveChanges prints verify and score for each active change; always succeeds.

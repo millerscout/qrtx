@@ -46,14 +46,7 @@ func FinishPropose(repoRoot, slug string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	out := map[string]any{
-		"slug":       sc.Slug,
-		"score":      sc.Score,
-		"max_score":  sc.MaxScore,
-		"verify_ok":  sc.VerifyOK,
-		"verify_err": sc.VerifyErr,
-		"spec_depth": sc.Depth,
-	}
+	out := ScoreJSON(sc)
 	enc := json.NewEncoder(stdout)
 	return enc.Encode(out)
 }
