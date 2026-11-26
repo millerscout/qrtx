@@ -12,7 +12,7 @@ func TestPlanBench(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 20 {
+	if len(rows) != 21 {
 		t.Fatalf("scenarios=%d", len(rows))
 	}
 	baseRows, err := loadPlanJSONL[planBaseline](filepath.Join(root, "baseline.jsonl"))
@@ -54,10 +54,10 @@ func TestPlanBench(t *testing.T) {
 	}
 	summary := formatBenchCounts(improved, regressed, unchanged, applyOK, applyFail, applySkipped)
 	t.Log(summary)
-	if improved != 0 || regressed != 0 || unchanged != 20 {
+	if improved != 0 || regressed != 0 || unchanged != 21 {
 		t.Fatal(summary)
 	}
-	if applyOK != 17 || applyFail != 1 || applySkipped != 2 {
+	if applyOK != 18 || applyFail != 1 || applySkipped != 2 {
 		t.Fatal(summary)
 	}
 	if !strings.Contains(summary, "improved") || !strings.Contains(summary, "regressed") || !strings.Contains(summary, "unchanged") || !strings.Contains(summary, "apply_ok") || !strings.Contains(summary, "apply_fail") || !strings.Contains(summary, "apply_skipped") {

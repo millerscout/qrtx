@@ -18,3 +18,4 @@
 {"id":"golden-script","band":"context","domain":"scripts"}
 {"id":"paired-cases","band":"simple","domain":"scripts/fixtures"}
 {"id":"propose-code-context","band":"context","domain":"internal/sdd"}
+{"id":"daylist-break","band":"goldfish","domain":"scripts"}

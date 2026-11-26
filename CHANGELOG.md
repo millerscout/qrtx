@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.2 — 2026-11-26
+
+### Added
+
+- Plan bench row `daylist-break` (Aurora's day-list deep-regression request): `goldfish`, domain `scripts`, apply_ok. `TestPlanBench` now expects 21 rows, unchanged 21, apply_ok 18, apply_fail 1, apply_skipped 2.
+
 ## v0.4.1 — 2026-11-26
 
 ### Fixed

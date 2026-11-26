@@ -1,6 +1,6 @@
 ```change
 name: plan-bench-daylist-row
-status: planning
+status: complete
 packages: []
 ```
 
@@ -63,12 +63,12 @@ Rollback: n/a (test fixtures only; consumers pin the previous tag).
 
 ## Tasks
 
-- [ ] 1.1 Append the D2 row to `testdata/fixtures/sdd_plan_bench/scenarios.jsonl` and `{"id":"daylist-break","band":"goldfish","domain":"scripts"}` to `testdata/fixtures/sdd_plan_bench/baseline.jsonl`, then raise `propose_bench_test.go` to 21 rows, unchanged 21 and apply_ok 18. verify: V1.1. covers S1,S2
-- [ ] 1.2 Add a CHANGELOG entry with the change, and tag the next patch release on the archive commit (see Deploy). verify: `git tag --points-at HEAD` names the tag.
+- [x] 1.1 Append the D2 row to `testdata/fixtures/sdd_plan_bench/scenarios.jsonl` and `{"id":"daylist-break","band":"goldfish","domain":"scripts"}` to `testdata/fixtures/sdd_plan_bench/baseline.jsonl`, then raise `propose_bench_test.go` to 21 rows, unchanged 21 and apply_ok 18. verify: V1.1. covers S1,S2
+- [x] 1.2 Add a CHANGELOG entry with the change, and tag the next patch release on the archive commit (see Deploy). verify: `git tag --points-at HEAD` names the tag.
 
 ## Validate
 
-- [ ] V1.1 `go test . -count=1 -run TestPlanBench -v` covers S1,S2
+- [x] V1.1 `go test . -count=1 -run TestPlanBench -v` covers S1,S2
 
 ## Constitution
 
