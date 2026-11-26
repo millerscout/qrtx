@@ -10,4 +10,4 @@
 {"id":"root-layout-grounded","fixture":"root-layout-grounded","slug":"root-layout-grounded","expect_pass_verify":true,"expect_min_score":95,"max_wall_ms":2000}
 {"id":"cites-directory","fixture":"cites-directory","slug":"cites-directory","expect_pass_verify":true,"expect_min_score":0,"expect_max_score":94,"max_wall_ms":2000}
 {"id":"self-cite","fixture":"self-cite","slug":"self-cite","expect_pass_verify":true,"expect_min_score":0,"expect_max_score":94,"max_wall_ms":2000}
-{"id":"cites-go-mod","fixture":"cites-go-mod","slug":"cites-go-mod","expect_pass_verify":true,"expect_min_score":0,"expect_max_score":94,"max_wall_ms":2000}
+{"id":"cites-package-json","fixture":"cites-package-json","slug":"cites-package-json","expect_pass_verify":true,"expect_min_score":0,"expect_max_score":94,"max_wall_ms":2000}

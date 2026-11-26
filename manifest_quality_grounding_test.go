@@ -42,11 +42,15 @@ func TestObservedGroundingEscapes(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(root, "docs", "link.go")); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/repo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	cases := []struct {
 		name     string
 		observed string
 		want     bool
 	}{
+		{"go-mod", "- `go.mod` is at the repo root.", false},
 		{"parent", "- `../outside.go` sits beside the repo.", false},
 		{"absolute", "- `" + outside + "` sits beside the repo.", false},
 		{"symlink-out", "- `docs/link.go` points outside the repo.", false},
@@ -62,6 +66,9 @@ func TestObservedGroundingEscapes(t *testing.T) {
 			}
 			if sc.ObservedGrounded != tc.want {
 				t.Fatalf("ObservedGrounded=%v want %v (score %d)", sc.ObservedGrounded, tc.want, sc.Score)
+			}
+			if !tc.want && sc.Score > 94 {
+				t.Fatalf("score=%d want <= 94 when Observed is not grounded", sc.Score)
 			}
 		})
 	}
@@ -134,4 +141,31 @@ func setTasks(t *testing.T, root, slug, tasks string) {
 		t.Fatal(err)
 	}
 	_ = os.WriteFile(filepath.Join(root, "docs", "read.md"), []byte("read\n"), 0o644)
+}
+
+// TestTestdataSurvivesModuleZip fails on anything under testdata/ that Go's module zip
+// (golang.org/x/mod/zip) leaves out, so a consumer running `go test github.com/millerscout/sdd`
+// sees the same fixtures as this repository: nested modules, vendor/ and VCS folders, symlinks.
+func TestTestdataSurvivesModuleZip(t *testing.T) {
+	vcs := map[string]bool{".git": true, ".hg": true, ".bzr": true, ".svn": true}
+	err := filepath.WalkDir("testdata", func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		switch {
+		case d.IsDir() && (d.Name() == "vendor" || vcs[d.Name()]):
+			t.Errorf("%s: the module zip leaves this folder out", path)
+			return filepath.SkipDir
+		case d.Type()&os.ModeSymlink != 0:
+			t.Errorf("%s: the module zip leaves symlinks out", path)
+		case !d.IsDir() && !d.Type().IsRegular():
+			t.Errorf("%s: the module zip leaves non-regular files out", path)
+		case !d.IsDir() && d.Name() == "go.mod":
+			t.Errorf("%s: a go.mod makes its folder a separate module, left out of the module zip", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }

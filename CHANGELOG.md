@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.4.1 — 2026-11-26
+
+### Fixed
+
+- `go test github.com/millerscout/sdd` failed from a consumer's module cache: the v0.4.0 golden fixture `cites-go-mod` held a `go.mod`, so Go treated it as a separate module and left it out of the module download. That row is now `cites-package-json`, and the `go.mod` case is tested with a file written at run time.
+
+### Added
+
+- `TestTestdataSurvivesModuleZip` fails on anything under `testdata/` that the module zip leaves out: a `go.mod`, a `vendor/` or VCS folder, or a symlink.
+
 ## v0.4.0 — 2026-11-26
 
 ### Changed

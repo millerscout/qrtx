@@ -1,5 +1,5 @@
 ```change
-name: cites-go-mod
+name: cites-package-json
 status: planning
 packages: []
 ```
@@ -18,7 +18,7 @@ Operator wants a proposal score only when the plan names a file that was read.
 
 ## Observed
 
-- `go.mod` is at the root of this fixture tree.
+- `package.json` is at the root of this fixture tree.
 
 ## Assumptions
 
