@@ -29,8 +29,11 @@ func TestWatch(t *testing.T) {
 	qrtxAt(t, repo, nil, "sync", "heartbeat", "--session", "A")
 	qrtxAt(t, wt, nil, "sync", "heartbeat", "--session", "B")
 	waitFor(t, "daemon", 3*time.Second, func() bool { return syncStatus(t, repo).Daemon != nil })
-	// Let the first snapshot happen: it must be silent.
-	time.Sleep(600 * time.Millisecond)
+	// Let the first snapshot of both worktrees happen: it must be silent.
+	waitFor(t, "first watch snapshot", 10*time.Second, func() bool {
+		raw, _ := os.ReadFile(filepath.Join(gitSdd, "state.json"))
+		return strings.Count(string(raw), `"change": "demo"`) >= 2
+	})
 	if n := countEvents(t, gitSdd, "task_progress"); n != 0 {
 		t.Fatalf("first snapshot emitted %d events", n)
 	}
