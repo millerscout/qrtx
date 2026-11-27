@@ -1,0 +1,49 @@
+name: nightly
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  github-tracker:
+    runs-on: ubuntu-latest
+    env:
+      TRACKER_SCRATCH_TOKEN: ${{ secrets.TRACKER_SCRATCH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: real GitHub check (scratch repo)
+        run: |
+          if [ -z "$TRACKER_SCRATCH_TOKEN" ]; then
+            echo "::notice::TRACKER_SCRATCH_TOKEN not set; skipping real GitHub check"
+            exit 0
+          fi
+          bin="$RUNNER_TEMP/bin"; mkdir -p "$bin"
+          go build -o "$bin/qrtx" ./cmd/qrtx
+          go build -o "$bin/qrtx-tracker-github" ./cmd/qrtx-tracker-github
+          export PATH="$bin:$PATH"
+          repo="$RUNNER_TEMP/repo"; mkdir -p "$repo"; cd "$repo"; git init -q
+          export QRTX_CREDENTIALS="$RUNNER_TEMP/credentials.yaml"
+          printf 'hosts:\n  api.github.com: {token_env: TRACKER_SCRATCH_TOKEN, scopes: [millerscout/sdd-tracker-scratch]}\n' > "$QRTX_CREDENTIALS"
+          printf 'tracker:\n  backend: github\n  config: {repo: millerscout/sdd-tracker-scratch}\n' > .sdd.yaml
+          QRTX_REPO="$repo" qrtx tracker check --allow-writes
+
+  soak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: 5-minute multi-session soak
+        run: QRTX_SOAK=5m go test -tags e2e ./e2e/ -count=1 -run 'TestSoak$' -v -timeout 15m

@@ -281,6 +281,7 @@ func TestTrackerCheck(t *testing.T) {
 }
 
 func TestTrackerCheckExec(t *testing.T) {
+	skipOnWindows(t, "sh-script plugins")
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("needs sh")
 	}
@@ -313,6 +314,7 @@ esac
 }
 
 func TestTrackerArchiveCLIReportsPending(t *testing.T) {
+	skipOnWindows(t, "sh-script plugins")
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("needs sh")
 	}

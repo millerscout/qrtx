@@ -145,6 +145,7 @@ func TestDaemonStatus(t *testing.T) {
 // downPlugin is a shell tracker plugin whose answers depend on a mode file.
 func downPlugin(t *testing.T, dir string) string {
 	t.Helper()
+	skipOnWindows(t, "sh-script plugins")
 	bin := t.TempDir()
 	script := fmt.Sprintf(`#!/bin/sh
 cat >/dev/null

@@ -63,6 +63,7 @@ func installed(t *testing.T, dir, version string) string {
 	link := filepath.Join(dir, "bin", "qrtx")
 	_ = os.MkdirAll(filepath.Dir(link), 0o755)
 	_ = os.Remove(link)
+	skipOnWindows(t, "symlinks")
 	if err := os.Symlink(filepath.Join(dir, version, "qrtx"), link); err != nil {
 		t.Fatal(err)
 	}

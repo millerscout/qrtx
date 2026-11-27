@@ -1,0 +1,41 @@
+[
+  {
+    "detail": "<DETAIL>",
+    "ok": true,
+    "op": "capabilities"
+  },
+  {
+    "detail": "<DETAIL>",
+    "ok": true,
+    "op": "list_issues"
+  },
+  {
+    "detail": "<ID>",
+    "ok": true,
+    "op": "create_issue"
+  },
+  {
+    "ok": true,
+    "op": "create_issue (idempotent)"
+  },
+  {
+    "ok": true,
+    "op": "get_issue"
+  },
+  {
+    "ok": true,
+    "op": "list_issues (after create)"
+  },
+  {
+    "ok": true,
+    "op": "transition_issue (cleanup: canceled)"
+  },
+  {
+    "ok": true,
+    "op": "transition_issue"
+  },
+  {
+    "ok": true,
+    "op": "update_issue"
+  }
+]

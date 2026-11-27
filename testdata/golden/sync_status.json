@@ -1,0 +1,29 @@
+{
+  "claims": [
+    {
+      "at": "<TIME>",
+      "key": "demo/1.1",
+      "root": "<ROOT>",
+      "session": "A",
+      "worktree": "<ROOT>"
+    }
+  ],
+  "daemon": null,
+  "enabled": true,
+  "last_poll": {},
+  "outbox": 0,
+  "sessions": [
+    {
+      "id": "A",
+      "lease_until": "<TIME>",
+      "live": true,
+      "worktree": "<ROOT>"
+    },
+    {
+      "id": "B",
+      "lease_until": "<TIME>",
+      "live": true,
+      "worktree": "<ROOT>"
+    }
+  ]
+}
