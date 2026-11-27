@@ -33,10 +33,18 @@ func TestAllowedValidateCommand(t *testing.T) {
 	if !allowedValidateCommand("rm -rf /", true, nil) {
 		t.Fatal("escape hatch should allow")
 	}
-	for _, c := range []string{"qrtx change verify --change x", "./qrtx change verify --change x", "sdd change verify --change x", "SDD_REPO=. sdd change verify --change x"} {
+	for _, c := range []string{"qrtx change verify --change x", "./qrtx change verify --change x"} {
 		if !allowedValidateCommand(c, false, nil) {
 			t.Fatalf("%q should be allowed", c)
 		}
+	}
+	for _, c := range []string{"sdd change verify --change x", "./sdd change verify --change x", "SDD_REPO=. sdd change verify --change x"} {
+		if allowedValidateCommand(c, false, nil) {
+			t.Fatalf("%q should be rejected", c)
+		}
+	}
+	if !allowedValidateCommand("sdd change verify --change x", false, []string{"sdd "}) {
+		t.Fatal("validate_allow should allow sdd")
 	}
 	os.Unsetenv(EnvRunValidate)
 }

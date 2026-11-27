@@ -134,23 +134,17 @@ func TestHooksInstall(t *testing.T) {
 	}
 }
 
-func TestHooksInstallReplacesLegacySdd(t *testing.T) {
+func TestHooksInstallKeepsSddHooks(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.local.json")
 	orig := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"sdd sync begin --hook"}]}],` +
-		`"UserPromptSubmit":[{"hooks":[{"type":"command","command":"\"/usr/local/bin/sdd\" sync heartbeat --hook --quiet"},{"type":"command","command":"echo mine"}]}],` +
-		`"SessionEnd":[{"hooks":[{"type":"command","command":"sdd sync end --hook --other"}]}]}}`
+		`"UserPromptSubmit":[{"hooks":[{"type":"command","command":"\"/x/sdd\" sync heartbeat --hook --quiet"}]}]}}`
 	_ = os.WriteFile(path, []byte(orig), 0o644)
 	if changed, err := InstallHooks(path, "qrtx"); err != nil || !changed {
 		t.Fatalf("%v %v", changed, err)
 	}
 	raw, _ := os.ReadFile(path)
 	got := string(raw)
-	for _, gone := range []string{`"sdd sync begin --hook"`, `/usr/local/bin/sdd`} {
-		if strings.Contains(got, gone) {
-			t.Fatalf("legacy hook %s kept:\n%s", gone, got)
-		}
-	}
-	for _, want := range []string{"qrtx sync begin --hook", "qrtx sync heartbeat --hook --quiet", "echo mine", "sdd sync end --hook --other"} {
+	for _, want := range []string{`"sdd sync begin --hook"`, `\"/x/sdd\" sync heartbeat --hook --quiet`, "qrtx sync begin --hook", "qrtx sync heartbeat --hook --quiet"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %s:\n%s", want, got)
 		}
@@ -164,7 +158,7 @@ func TestHasSyncHooks(t *testing.T) {
 	dir := t.TempDir()
 	cases := map[string]bool{
 		`{"hooks":{"SessionEnd":[{"hooks":[{"type":"command","command":"qrtx sync end --hook"}]}]}}`:                           true,
-		`{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"\"/x/sdd\" sync heartbeat --hook --quiet"}]}]}}`: true,
+		`{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"\"/x/sdd\" sync heartbeat --hook --quiet"}]}]}}`: false,
 		`{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"sdd change list"}]}]}}`:                              false,
 		`{"permissions":{}}`: false,
 		``:                   false,

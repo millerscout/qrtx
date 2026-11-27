@@ -341,27 +341,19 @@ func (f *fakeT) Errorf(string, ...any) { f.failed = true }
 func (f *fakeT) Fatalf(string, ...any) { f.failed = true }
 func (f *fakeT) Helper()               {}
 
-func TestCredentialsPathFallsBackToLegacySddDir(t *testing.T) {
+func TestCredentialsPathIgnoresOldSddDir(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses XDG_CONFIG_HOME")
 	}
 	dir := t.TempDir()
 	t.Setenv("QRTX_CREDENTIALS", "")
 	t.Setenv("XDG_CONFIG_HOME", dir)
+	old := filepath.Join(dir, "sdd", "credentials.yaml")
+	_ = os.MkdirAll(filepath.Dir(old), 0o700)
+	_ = os.WriteFile(old, []byte("{}\n"), 0o600)
 	want := filepath.Join(dir, "qrtx", "credentials.yaml")
 	if got, err := kit.CredentialsPath(); err != nil || got != want {
-		t.Fatalf("no file: got %q %v, want %q", got, err, want)
-	}
-	legacy := filepath.Join(dir, "sdd", "credentials.yaml")
-	_ = os.MkdirAll(filepath.Dir(legacy), 0o700)
-	_ = os.WriteFile(legacy, []byte("{}\n"), 0o600)
-	if got, _ := kit.CredentialsPath(); got != legacy {
-		t.Fatalf("legacy only: got %q, want %q", got, legacy)
-	}
-	_ = os.MkdirAll(filepath.Dir(want), 0o700)
-	_ = os.WriteFile(want, []byte("{}\n"), 0o600)
-	if got, _ := kit.CredentialsPath(); got != want {
-		t.Fatalf("both: got %q, want %q", got, want)
+		t.Fatalf("got %q %v, want %q", got, err, want)
 	}
 }
 

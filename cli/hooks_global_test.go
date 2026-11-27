@@ -183,7 +183,7 @@ func TestHooksGlobal(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(proj, qrtx.RepoConfigFile), nil, 0o644)
 	projSettings := filepath.Join(proj, ".claude", "settings.local.json")
 	_ = os.MkdirAll(filepath.Dir(projSettings), 0o755)
-	projOrig := `{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"\"/x/sdd\" sync heartbeat --hook --quiet"}]}]}}`
+	projOrig := `{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"\"/x/qrtx\" sync heartbeat --hook --quiet"}]}]}}`
 	_ = os.WriteFile(projSettings, []byte(projOrig), 0o644)
 	chdir(t, proj)
 
@@ -204,14 +204,9 @@ func TestHooksGlobal(t *testing.T) {
 	}
 	raw, _ := os.ReadFile(global)
 	got := string(raw)
-	for _, want := range []string{`"permissions"`, "echo pre", "sdd change list", "qrtx sync begin --hook", "qrtx sync heartbeat --hook --quiet", "qrtx sync inbox --hook --brief", "qrtx sync end --hook"} {
+	for _, want := range []string{`"permissions"`, "echo pre", "sdd change list", `"sdd sync begin --hook"`, "/Users/me/go/bin/sdd", "qrtx sync begin --hook", "qrtx sync heartbeat --hook --quiet", "qrtx sync inbox --hook --brief", "qrtx sync end --hook"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %s:\n%s", want, got)
-		}
-	}
-	for _, gone := range []string{`"sdd sync begin --hook"`, "/Users/me/go/bin/sdd"} {
-		if strings.Contains(got, gone) {
-			t.Fatalf("legacy %s kept:\n%s", gone, got)
 		}
 	}
 	if b, _ := os.ReadFile(projSettings); string(b) != projOrig {

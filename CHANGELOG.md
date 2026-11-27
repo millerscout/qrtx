@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+
+- **Support for the old `sdd` name** (change `no-legacy-sdd`). Before upgrading:
+  - **Credentials:** `<config dir>/sdd/credentials.yaml` is no longer read. Move it to `<config dir>/qrtx/credentials.yaml`.
+  - **Hooks:** `qrtx skills install --hooks` (project or `--global`) no longer replaces hooks that call `sdd`, and no longer counts them as sync hooks. Remove them by hand.
+  - **Validate commands:** `run-validate` no longer allowlists `sdd …` or `./sdd …`. Change such lines to `qrtx …`, or list `sdd ` under `validate_allow`.
+
 ## v0.5.0 — 2026-11-27
 
 ### Changed
