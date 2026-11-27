@@ -23,7 +23,7 @@ The hooks:
 |---|---|---|
 | `SessionStart` | `qrtx sync begin --hook` | Registers the session, and exports `QRTX_SESSION` (through `$CLAUDE_ENV_FILE`) so the agent's own `qrtx` commands use the same session id |
 | `UserPromptSubmit` | `qrtx sync heartbeat --hook --quiet` | Keeps the lease alive while you work |
-| `UserPromptSubmit` | `qrtx sync inbox --hook --brief` | Puts what the other sessions did into the prompt's context (10 lines at most) |
+| `UserPromptSubmit` | `qrtx sync inbox --hook --brief` | Puts what the other sessions did into the prompt's context (10 lines at most; the rest stay unread for the next one) |
 | `PostToolUse` (async) | `qrtx sync heartbeat --hook --quiet` | Keeps the lease alive during long agent runs, without delaying any tool |
 | `SessionEnd` | `qrtx sync end --hook` | Releases the session's claims at once; lease expiry still covers a crash |
 
@@ -38,7 +38,7 @@ Other agents, scripts or people call the same commands with `--session <id>` or 
 | `qrtx sync heartbeat [--session id] [--hook] [--quiet]` | Extends the session's lease. A repeat within `min(60s, lease/4)` only checks a marker file. It starts the daemon when none runs. It never fails the caller. |
 | `qrtx sync begin` / `end [--hook]` | Starts the session (and writes `QRTX_SESSION` to `$CLAUDE_ENV_FILE`), or ends it and releases its claims |
 | `qrtx sync claim <key> [--release]` | Claims (or releases) an issue ref or `<slug>/<task id>`. Fails, naming the holder, when another live session holds it. |
-| `qrtx sync inbox [--json] [--brief] [--hook]` | Shows the other sessions' events since your last look |
+| `qrtx sync inbox [--json] [--brief] [--hook]` | Shows the other sessions' events since your last look. Task ticks in your own worktree are left out unless another live session shares it. With `--brief`, 10 at most; the rest stay unread. |
 | `qrtx sync watch [--json]` | Streams new events |
 | `qrtx sync status [--json]` | Shows the daemon, sessions and their leases, claims, the outbox size, and the last remote poll |
 | `qrtx sync stop` | Stops the daemon (it flushes pending tracker writes first) |
@@ -49,7 +49,7 @@ Other agents, scripts or people call the same commands with `--session <id>` or 
 
 - expires leases every `sync.tick` (5s) and releases their claims;
 - sends each repository root's pending tracker writes (the outbox), so they don't wait for your next `qrtx tracker` command;
-- watches `sdd/changes/*` task checkboxes in every worktree and reports each one that flips;
+- watches the task checkboxes of `sdd/changes/*` in every worktree (`phases/*.md` when a change has them, else `change.sdd.md`) and reports each one that flips, the ticks of one file in task order;
 - polls each root's remote tracker every `sync.interval` (2m), and reports issues that changed.
 
 When no lease is live, it flushes the outbox once more and exits. With `CI` set, `--no-daemon` or `QRTX_NO_DAEMON=1`, no daemon is started; everything except the timer-driven parts still works, and expired leases are still treated as expired.
