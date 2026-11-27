@@ -118,6 +118,7 @@ func (p *Provider) path(format string, a ...any) string {
 
 func (p *Provider) toIssue(g ghIssue) tracker.Issue {
 	desc, m, _ := tracker.DecodeMarker(g.Body)
+	desc, prec, _ := tracker.DecodePrec(desc)
 	reason := ""
 	if g.StateReason != nil {
 		reason = *g.StateReason
@@ -146,7 +147,7 @@ func (p *Provider) toIssue(g ghIssue) tracker.Issue {
 	is := tracker.Issue{
 		ID: strconv.Itoa(g.Number), URL: g.HTMLURL, Title: g.Title, Description: desc,
 		Status: tracker.IssueStatus{Name: name, Category: cat}, Labels: labels, UpdatedAt: g.UpdatedAt,
-		Refs: m.Refs, ClientRef: m.ClientRef,
+		Refs: m.Refs, ClientRef: m.ClientRef, Links: prec.Links, Priority: prec.Priority,
 	}
 	if g.Assignee != nil {
 		is.Assignee = g.Assignee.Login
@@ -321,7 +322,7 @@ func (p *Provider) CreateIssue(in tracker.CreateIssueInput) (tracker.Issue, erro
 			return p.toIssue(*g), nil
 		}
 	}
-	body := tracker.EncodeMarker(in.Description, tracker.Marker{ClientRef: in.ClientRef, Refs: in.Refs})
+	body := tracker.EncodeMarker(tracker.EncodePrec(in.Description, tracker.Precedence{Priority: in.Priority}), tracker.Marker{ClientRef: in.ClientRef, Refs: in.Refs})
 	req := map[string]any{"title": in.Title, "body": body}
 	if len(in.Labels) > 0 {
 		req["labels"] = in.Labels
@@ -337,14 +338,17 @@ func (p *Provider) CreateIssue(in tracker.CreateIssueInput) (tracker.Issue, erro
 	return p.toIssue(g), nil
 }
 
-// UpdateIssue patches title, description, labels and sdd refs. A labels
-// replace keeps the started label.
+// UpdateIssue patches title, description, labels, sdd refs, links and
+// priority. A labels replace keeps the started label. Links and priority live
+// in the sdd-prec line, which sits before the sdd marker so that an older
+// plugin rewriting the sdd marker leaves it in the description.
 func (p *Provider) UpdateIssue(id string, in tracker.UpdateIssueInput) (tracker.Issue, error) {
 	g, err := p.get(id)
 	if err != nil {
 		return tracker.Issue{}, err
 	}
 	desc, m, _ := tracker.DecodeMarker(g.Body)
+	desc, prec, _ := tracker.DecodePrec(desc)
 	patch := map[string]any{}
 	if in.Title != nil {
 		patch["title"] = *in.Title
@@ -357,8 +361,11 @@ func (p *Provider) UpdateIssue(id string, in tracker.UpdateIssueInput) (tracker.
 	if is.AddRefs(in.AddRefs) {
 		changedBody = true
 	}
+	if prec.Apply(in) {
+		changedBody = true
+	}
 	if changedBody {
-		patch["body"] = tracker.EncodeMarker(desc, tracker.Marker{ClientRef: m.ClientRef, Refs: is.Refs})
+		patch["body"] = tracker.EncodeMarker(tracker.EncodePrec(desc, prec), tracker.Marker{ClientRef: m.ClientRef, Refs: is.Refs})
 	}
 	if in.Labels != nil {
 		labels := append([]string{}, in.Labels...)

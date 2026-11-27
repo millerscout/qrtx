@@ -105,6 +105,60 @@ type StartResult struct {
 	// repository, whose manifests already link this issue. Starting is still
 	// allowed; callers warn.
 	AlsoActive []ActiveLink
+	// Blockers are the open issues (as backend:id) that block this one.
+	Blockers []string
+	// Forced says the start went ahead past Blockers, or past a blocker
+	// listing that could not be completed, because of StartOptions.Force.
+	Forced bool
+	// Warnings are checks that could not run (the backend cannot list issues).
+	Warnings []string
+}
+
+// StartOptions tunes StartFromIssueWith.
+type StartOptions struct {
+	// Force starts an issue that an open issue blocks.
+	Force bool
+}
+
+// BlockedError is returned when an issue cannot be started: an open issue
+// blocks it, or the blocker listing was incomplete and so proves nothing.
+type BlockedError struct {
+	Ref        string
+	Blockers   []string
+	Incomplete bool
+	Cause      error
+}
+
+func (e *BlockedError) Error() string {
+	if len(e.Blockers) > 0 {
+		return fmt.Sprintf("%s is blocked by %s; finish or close them first, or start anyway with --force", e.Ref, strings.Join(e.Blockers, ", "))
+	}
+	why := "the listing of open issues was incomplete (page cap reached)"
+	if e.Cause != nil {
+		why = "the listing of open issues failed: " + e.Cause.Error()
+	}
+	return fmt.Sprintf("cannot tell whether %s is blocked: %s; start anyway with --force", e.Ref, why)
+}
+
+func (e *BlockedError) Unwrap() error { return e.Cause }
+
+// checkBlockers lists the open issues on impl and returns those that block
+// ref. A listing that fails or stops at the page cap is incomplete; a backend
+// that cannot list issues yields a warning.
+func checkBlockers(impl IssueTracker, backend, id string) (blockers []string, warning string, incomplete bool, cause error) {
+	ref := backend + ":" + id
+	caps, err := impl.Capabilities()
+	if err == nil && !caps.Has(OpListIssues) {
+		return nil, fmt.Sprintf("blockers of %s were not checked: %s cannot list issues", ref, backend), false, nil
+	}
+	if err != nil {
+		return nil, "", true, err
+	}
+	open, complete, err := ListOpenIssues(impl)
+	if err != nil {
+		return nil, "", true, err
+	}
+	return BlockerIndex(backend, open)[ref], "", !complete, nil
 }
 
 // ActiveLink is an active change that links an issue. Worktree is empty for
@@ -158,6 +212,14 @@ func activeLinksTo(repoRoot, defaultBackend, ref, slug string) []ActiveLink {
 // ref to the manifest's issues list, and queues a transition to started plus
 // an update that adds this change's SDDRef. Unstable until v1.
 func StartFromIssue(repoRoot string, t *Tracker, ref, slug string) (StartResult, error) {
+	return StartFromIssueWith(repoRoot, t, ref, slug, StartOptions{})
+}
+
+// StartFromIssueWith is StartFromIssue with options. Between reading the
+// issue and creating the change it lists the open issues on the issue's own
+// backend and refuses (BlockedError, nothing created) while one of them blocks
+// it, unless opts.Force. Unstable until v1.
+func StartFromIssueWith(repoRoot string, t *Tracker, ref, slug string, opts StartOptions) (StartResult, error) {
 	slug = strings.TrimSpace(slug)
 	if !ValidChangeSlug(slug) {
 		return StartResult{}, fmt.Errorf("invalid change slug %q", slug)
@@ -172,6 +234,19 @@ func StartFromIssue(repoRoot string, t *Tracker, ref, slug string) (StartResult,
 		return StartResult{}, err
 	}
 	res := StartResult{Slug: slug, Ref: backend + ":" + is.ID}
+	blockers, warn, incomplete, cause := checkBlockers(impl, backend, is.ID)
+	if warn != "" {
+		res.Warnings = append(res.Warnings, warn)
+	}
+	res.Blockers = blockers
+	switch {
+	case len(blockers) > 0 && !opts.Force:
+		return res, &BlockedError{Ref: res.Ref, Blockers: blockers}
+	case incomplete && !opts.Force:
+		return res, &BlockedError{Ref: res.Ref, Incomplete: true, Cause: cause}
+	case len(blockers) > 0 || incomplete:
+		res.Forced = true
+	}
 	res.AlsoActive = activeLinksTo(repoRoot, t.Backend, res.Ref, slug)
 	path := changeFilePath(repoRoot, slug)
 	if _, err := os.Stat(path); os.IsNotExist(err) {

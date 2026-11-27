@@ -97,7 +97,10 @@ func fakeTrackerMain() int {
 			caps.Protocols = []string{"sdd.adapter/v2"}
 		}
 		if mode == "nocomment" {
-			caps.Ops = caps.Ops[:6]
+			caps.Ops = []string{OpCapabilities, OpListIssues, OpGetIssue, OpCreateIssue, OpUpdateIssue, OpTransitionIssue}
+		}
+		if mode == "nolist" {
+			caps.Ops = []string{OpCapabilities, OpGetIssue, OpCreateIssue, OpUpdateIssue, OpTransitionIssue, OpComment}
 		}
 		return fakeReply(caps, "")
 	}
@@ -115,6 +118,10 @@ func fakeTrackerMain() int {
 	str := func(k string) string { var v string; _ = json.Unmarshal(a[k], &v); return v }
 	switch req.Op {
 	case OpListIssues:
+		if mode == "endless" {
+			// A listing that never ends: every page has a next cursor.
+			return fakeReply(map[string]any{"issues": []Issue{}, "cursor": "more"}, "")
+		}
 		return fakeReply(map[string]any{"issues": s.Issues}, "")
 	case OpGetIssue:
 		i := find(str("id"))
@@ -134,7 +141,7 @@ func fakeTrackerMain() int {
 		if cat == "" {
 			cat = CategoryBacklog
 		}
-		is := Issue{ID: fmt.Sprintf("F-%d", len(s.Issues)+1), Title: in.Title, Description: in.Description, Status: IssueStatus{Category: cat}, Refs: in.Refs, ClientRef: in.ClientRef}
+		is := Issue{ID: fmt.Sprintf("F-%d", len(s.Issues)+1), Title: in.Title, Description: in.Description, Status: IssueStatus{Category: cat}, Refs: in.Refs, ClientRef: in.ClientRef, Priority: in.Priority}
 		s.Issues = append(s.Issues, is)
 		saveFake(s)
 		if mode == "block" {
@@ -150,6 +157,17 @@ func fakeTrackerMain() int {
 		var refs []SDDRef
 		_ = json.Unmarshal(a["add_sdd"], &refs)
 		s.Issues[i].AddRefs(refs)
+		if mode != "droplinks" {
+			var add, rm []IssueLink
+			_ = json.Unmarshal(a["add_links"], &add)
+			_ = json.Unmarshal(a["remove_links"], &rm)
+			s.Issues[i].AddLinks(add)
+			s.Issues[i].RemoveLinks(rm)
+			var pr *int
+			if json.Unmarshal(a["priority"], &pr) == nil {
+				s.Issues[i].SetPriority(pr)
+			}
+		}
 		if t := str("title"); t != "" {
 			s.Issues[i].Title = t
 		}

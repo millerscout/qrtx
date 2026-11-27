@@ -42,6 +42,9 @@ func TrackerHandler(p Provider) Handler {
 			Description *string             `json:"description"`
 			Labels      []string            `json:"labels"`
 			AddRefs     []tracker.SDDRef    `json:"add_sdd"`
+			AddLinks    []tracker.IssueLink `json:"add_links"`
+			RemoveLinks []tracker.IssueLink `json:"remove_links"`
+			Priority    *int                `json:"priority"`
 			Category    string              `json:"category"`
 			Native      string              `json:"native"`
 			Markdown    string              `json:"markdown"`
@@ -88,7 +91,8 @@ func TrackerHandler(p Provider) Handler {
 			if err := needID(); err != nil {
 				return nil, err
 			}
-			return p.UpdateIssue(a.ID, tracker.UpdateIssueInput{Title: a.Title, Description: a.Description, Labels: a.Labels, AddRefs: a.AddRefs})
+			return p.UpdateIssue(a.ID, tracker.UpdateIssueInput{Title: a.Title, Description: a.Description, Labels: a.Labels, AddRefs: a.AddRefs,
+				AddLinks: a.AddLinks, RemoveLinks: a.RemoveLinks, Priority: a.Priority})
 		case tracker.OpTransitionIssue:
 			if err := needID(); err != nil {
 				return nil, err

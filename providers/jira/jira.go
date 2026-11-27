@@ -32,6 +32,13 @@ type Provider struct {
 
 const crefPrefix = "sdd-cref-"
 const propKey = "sdd"
+
+// precKey holds links and priority apart from the sdd property: a plugin
+// that predates them rewrites the whole sdd property on every AddRefs.
+const precKey = "sdd-precedence"
+
+// propKeys is what get and search ask for.
+const propKeys = propKey + "," + precKey
 const fieldList = "summary,description,status,resolution,labels,updated,assignee"
 
 var projectRE = regexp.MustCompile(`^[A-Z][A-Z0-9_]+$`)
@@ -167,11 +174,17 @@ func (p *Provider) toIssue(j jIssue) tracker.Issue {
 			is.Refs = sp.Refs
 		}
 	}
+	if raw, ok := j.Properties[precKey]; ok {
+		var prec tracker.Precedence
+		if json.Unmarshal(raw, &prec) == nil {
+			is.Links, is.Priority = prec.Links, prec.Priority
+		}
+	}
 	return is
 }
 
 func (p *Provider) search(jql, token string, max int) ([]jIssue, string, error) {
-	q := url.Values{"jql": {jql}, "maxResults": {fmt.Sprint(max)}, "fields": {fieldList}, "properties": {propKey}}
+	q := url.Values{"jql": {jql}, "maxResults": {fmt.Sprint(max)}, "fields": {fieldList}, "properties": {propKeys}}
 	if token != "" {
 		q.Set("nextPageToken", token)
 	}
@@ -242,7 +255,7 @@ func keep(is tracker.Issue, f tracker.IssueFilter) bool {
 
 func (p *Provider) get(key string) (jIssue, error) {
 	var j jIssue
-	q := url.Values{"fields": {fieldList}, "properties": {propKey}}
+	q := url.Values{"fields": {fieldList}, "properties": {propKeys}}
 	_, err := p.client.Do(kit.Request{Method: "GET", Path: "/rest/api/3/issue/" + url.PathEscape(key), Query: q}, &j)
 	return j, err
 }
@@ -280,6 +293,11 @@ func (p *Provider) setRefs(key string, refs []tracker.SDDRef) error {
 	return err
 }
 
+func (p *Provider) setPrec(key string, prec tracker.Precedence) error {
+	_, err := p.client.Do(kit.Request{Method: "PUT", Path: "/rest/api/3/issue/" + url.PathEscape(key) + "/properties/" + precKey, Body: prec}, nil)
+	return err
+}
+
 // CreateIssue is idempotent per client_ref: the sdd-cref label is written
 // with the issue and searched before creating. The POST is never retried.
 func (p *Provider) CreateIssue(in tracker.CreateIssueInput) (tracker.Issue, error) {
@@ -313,6 +331,11 @@ func (p *Provider) CreateIssue(in tracker.CreateIssueInput) (tracker.Issue, erro
 	}
 	if len(in.Refs) > 0 {
 		if err := p.setRefs(created.Key, in.Refs); err != nil {
+			return tracker.Issue{}, err
+		}
+	}
+	if in.Priority != nil {
+		if err := p.setPrec(created.Key, tracker.Precedence{Priority: in.Priority}); err != nil {
 			return tracker.Issue{}, err
 		}
 	}
@@ -355,6 +378,15 @@ func (p *Provider) UpdateIssue(id string, in tracker.UpdateIssueInput) (tracker.
 		cur := p.toIssue(j)
 		if cur.AddRefs(in.AddRefs) {
 			if err := p.setRefs(id, cur.Refs); err != nil {
+				return tracker.Issue{}, err
+			}
+		}
+	}
+	if len(in.AddLinks) > 0 || len(in.RemoveLinks) > 0 || in.Priority != nil {
+		cur := p.toIssue(j)
+		prec := tracker.Precedence{Links: cur.Links, Priority: cur.Priority}
+		if prec.Apply(in) {
+			if err := p.setPrec(id, prec); err != nil {
 				return tracker.Issue{}, err
 			}
 		}

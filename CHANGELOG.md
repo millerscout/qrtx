@@ -21,6 +21,12 @@
 
 ### Added
 
+- **Precedence between issues** (change `tracker-precedence`; unstable until v1). Ship `qrtx`, `qrtx-tracker-github` and `qrtx-tracker-jira` together; older plugins keep working and leave links and priority alone.
+  - **Links and priority:** `qrtx tracker link <a> blocks|relates|duplicates <b>`, `unlink` and `priority <ref> <0-4>`, and `tracker add --priority N`, on the file backend, GitHub, Jira and plugins that declare `update_issue` (new `add_links`, `remove_links` and `priority` fields). They write directly and report a backend that did not store the change. GitHub keeps them in a second `<!-- sdd-prec:v1 … -->` body line and Jira in the `sdd-precedence` issue property, apart from the `sdd` refs.
+  - **`tracker start`:** refuses an issue that an open issue blocks, naming the blockers and creating nothing; `--force` starts it and says so. It fails closed when the open-issue listing is incomplete, and warns and skips the check when the backend cannot list issues.
+  - **`tracker list`:** orders by priority (1 first, none last, backend order among equals) and ends a blocked issue's line with `blocked by <refs>`, whatever the filter. `--json` keeps the issue schema.
+  - **`change propose-context`:** names which of two overlapping changes goes first when their linked issues are related by `blocks` (`goes_first`), or warns when the tracker cannot be reached.
+
 - **`qrtx sync`: coordination between agent sessions in one repository** (change `tracker-sync`; unstable until v1).
   - **Leases:** one-hour leases that heartbeats extend.
   - **Claims:** advisory claims on issues and `<slug>/<task>`.

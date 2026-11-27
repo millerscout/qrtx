@@ -11,7 +11,7 @@
     "config": {"type": "object", "description": ".sdd.yaml tracker.config, verbatim. Never secrets."},
     "args": {
       "type": "object",
-      "description": "list_issues: {filter}; get_issue: {id}; create_issue: {title, description?, category?, labels?, sdd?, client_ref, fresh?}; update_issue: {id, title?, description?, labels?, add_sdd?}; transition_issue: {id, category, native?}; comment: {id, markdown, client_ref}."
+      "description": "list_issues: {filter}; get_issue: {id}; create_issue: {title, description?, category?, labels?, sdd?, priority?, client_ref, fresh?}; update_issue: {id, title?, description?, labels?, add_sdd?, add_links?, remove_links?, priority?}; transition_issue: {id, category, native?}; comment: {id, markdown, client_ref}."
     }
   }
 }

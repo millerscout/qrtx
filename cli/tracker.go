@@ -7,12 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/millerscout/qrtx"
 )
 
-const trackerUsage = "Usage: %s tracker list [--status <category>] [--change <slug>] [--all] [--json] | get <ref> [--json] | add <title> [--description <text>] [--client-ref <ref>] | close <ref> [--canceled] | start <ref> <slug> | from-deferred --change <slug> | outbox [--json] [--drop <seq>] | check [--backend <name>] [--allow-writes] [--json] | init | setup <github|jira> [flags] | merge-driver <base> <ours> <theirs>\n"
+const trackerUsage = "Usage: %s tracker list [--status <category>] [--change <slug>] [--all] [--json] | get <ref> [--json] | add <title> [--description <text>] [--priority <0-4>] [--client-ref <ref>] | close <ref> [--canceled] | link <ref> <blocks|relates|duplicates> <ref> | unlink <ref> <type> <ref> | priority <ref> <0-4> | start <ref> <slug> [--force] | from-deferred --change <slug> | outbox [--json] [--drop <seq>] | check [--backend <name>] [--allow-writes] [--json] | init | setup <github|jira> [flags] | merge-driver <base> <ours> <theirs>\n"
 
 func runTracker(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
@@ -61,11 +62,20 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		list = qrtx.WithRecentCreates(root, t.Backend, f, list, t.GetIssue)
+		qrtx.SortByPriority(list)
 		if asJSON {
 			return writeJSON(stdout, list)
 		}
+		blockers := listBlockers(t, f, list, stderr)
 		for _, is := range list {
-			fmt.Fprintf(stdout, "%s\t%s\t%s\n", t.Ref("", is.ID), is.Status.Category, is.Title)
+			fmt.Fprintf(stdout, "%s\t%s\t%s", t.Ref("", is.ID), is.Status.Category, is.Title)
+			if is.Priority != nil && *is.Priority > 0 {
+				fmt.Fprintf(stdout, "\tP%d", *is.Priority)
+			}
+			if by := blockers[t.Ref("", is.ID)]; len(by) > 0 && qrtx.OpenCategory(is.Status.Category) {
+				fmt.Fprintf(stdout, "\tblocked by %s", strings.Join(by, ", "))
+			}
+			fmt.Fprintln(stdout)
 		}
 		return nil
 	case "get":
@@ -89,6 +99,12 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		if is.Description != "" {
 			fmt.Fprintf(stdout, "\n%s\n", is.Description)
 		}
+		if is.Priority != nil && *is.Priority > 0 {
+			fmt.Fprintf(stdout, "  priority: %d\n", *is.Priority)
+		}
+		for _, l := range is.Links {
+			fmt.Fprintf(stdout, "  %s %s\n", l.Type, t.Ref(backend, l.ID))
+		}
 		for _, r := range displayRefs(is.Refs) {
 			fields := []string{}
 			for _, f := range []string{r.Repo, r.Project, r.Change, r.Role} {
@@ -104,6 +120,14 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		if title == "" {
 			return fmt.Errorf("tracker add: pass a title")
 		}
+		var priority *int
+		if v := flagValue(args, "--priority"); v != "" {
+			n, err := parsePriority(v)
+			if err != nil {
+				return fmt.Errorf("tracker add: %w", err)
+			}
+			priority = &n
+		}
 		// A new client_ref has never been sent, so the provider can skip its
 		// duplicate lookup; --client-ref retries an earlier add safely.
 		cref := flagValue(args, "--client-ref")
@@ -115,6 +139,7 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 			Title:       title,
 			Description: flagValue(args, "--description"),
 			Refs:        []qrtx.SDDRef{{Repo: qrtx.RepoName(root), Project: t.Project()}},
+			Priority:    priority,
 			ClientRef:   cref,
 			Fresh:       fresh,
 		})
@@ -147,17 +172,61 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		}
 		fmt.Fprintf(stdout, "%s %s\n", t.Ref(backend, is.ID), is.Status.Category)
 		return nil
+	case "link", "unlink":
+		pos := positionals(args[1:])
+		if len(pos) != 3 {
+			return fmt.Errorf("tracker %s: pass <ref> <%s> <ref>", args[0], strings.Join(qrtx.LinkTypes, "|"))
+		}
+		remove := args[0] == "unlink"
+		is, err := qrtx.SetLink(t, pos[0], pos[1], pos[2], remove)
+		if err != nil {
+			return err
+		}
+		backend, _ := qrtx.ParseIssueRef(pos[0], t.Backend)
+		verb := "linked"
+		if remove {
+			verb = "unlinked"
+		}
+		_, bID := qrtx.ParseIssueRef(pos[2], t.Backend)
+		fmt.Fprintf(stdout, "%s %s %s %s\n", verb, t.Ref(backend, is.ID), pos[1], t.Ref(backend, bID))
+		return nil
+	case "priority":
+		pos := positionals(args[1:])
+		if len(pos) != 2 {
+			return fmt.Errorf("tracker priority: pass <ref> <0-4>")
+		}
+		n, err := parsePriority(pos[1])
+		if err != nil {
+			return fmt.Errorf("tracker priority: %w", err)
+		}
+		is, err := qrtx.SetPriority(t, pos[0], n)
+		if err != nil {
+			return err
+		}
+		backend, _ := qrtx.ParseIssueRef(pos[0], t.Backend)
+		fmt.Fprintf(stdout, "%s priority %d\n", t.Ref(backend, is.ID), n)
+		return nil
 	case "start":
 		pos := positionals(args[1:])
 		if len(pos) != 2 {
 			return fmt.Errorf("tracker start: pass <ref> <slug>")
 		}
-		res, err := qrtx.StartFromIssue(root, t, pos[0], pos[1])
+		res, err := qrtx.StartFromIssueWith(root, t, pos[0], pos[1], qrtx.StartOptions{Force: hasFlag(args, "--force")})
 		if err != nil {
 			return err
 		}
+		for _, w := range res.Warnings {
+			fmt.Fprintf(stderr, "warning: %s\n", w)
+		}
 		if res.Created {
 			fmt.Fprintf(stdout, "created sdd/changes/%s/\n", res.Slug)
+		}
+		if res.Forced {
+			if len(res.Blockers) > 0 {
+				fmt.Fprintf(stdout, "forced: %s is blocked by %s\n", res.Ref, strings.Join(res.Blockers, ", "))
+			} else {
+				fmt.Fprintf(stdout, "forced: could not check whether %s is blocked\n", res.Ref)
+			}
 		}
 		fmt.Fprintf(stdout, "linked %s to %s\n", res.Ref, res.Slug)
 		for _, a := range res.AlsoActive {
@@ -208,6 +277,43 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stderr, trackerUsage, qrtx.CLIName)
 		return fmt.Errorf("unknown tracker subcommand: %s", args[0])
 	}
+}
+
+// listBlockers maps each open issue of the configured backend to the open
+// issues that block it. The listing itself is used when it holds every open
+// issue; a filter (--status, --change) gets a second listing of open issues,
+// so a blocker the filter hides still shows. A failed or cut-off second
+// listing warns and shows what it found.
+func listBlockers(t *qrtx.Tracker, f qrtx.IssueFilter, list []qrtx.Issue, stderr io.Writer) map[string][]string {
+	open := list
+	if !coversOpen(f) {
+		all, complete, err := qrtx.ListOpenIssues(t.IssueTracker)
+		if err != nil {
+			fmt.Fprintf(stderr, "warning: blockers not shown: %v\n", err)
+			return nil
+		}
+		if !complete {
+			fmt.Fprintf(stderr, "warning: the open-issue listing was incomplete; some blockers may not show\n")
+		}
+		open = all
+	}
+	return qrtx.BlockerIndex(t.Backend, open)
+}
+
+// coversOpen reports whether a listing with filter f holds every open issue.
+func coversOpen(f qrtx.IssueFilter) bool {
+	if f.Change != "" {
+		return false
+	}
+	if len(f.Categories) == 0 {
+		return true
+	}
+	for _, c := range []string{qrtx.CategoryBacklog, qrtx.CategoryUnstarted, qrtx.CategoryStarted} {
+		if !containsArg(f.Categories, c) {
+			return false
+		}
+	}
+	return true
 }
 
 func reportDrain(rep qrtx.DrainReport, stderr io.Writer) {
@@ -440,7 +546,16 @@ func flagValue(args []string, flag string) string {
 	return ""
 }
 
-var valueFlags = map[string]bool{"--status": true, "--change": true, "--description": true, "--backend": true, "--drop": true,
+// parsePriority reads a priority: 0 (none) to 4 (low), 1 being urgent.
+func parsePriority(s string) (int, error) {
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil || !qrtx.ValidPriority(n) {
+		return 0, fmt.Errorf("priority %q is not a number from 0 (none) to 4 (low); 1 is urgent", s)
+	}
+	return n, nil
+}
+
+var valueFlags = map[string]bool{"--priority": true, "--status": true, "--change": true, "--description": true, "--backend": true, "--drop": true,
 	"--repo": true, "--api-url": true, "--url": true, "--project": true, "--issue-type": true, "--token-env": true, "--email-env": true, "--token-command": true, "--tracker": true, "--session": true}
 
 // positionals returns the arguments that are neither flags nor flag values.

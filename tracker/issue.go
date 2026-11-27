@@ -247,7 +247,9 @@ type CreateIssueInput struct {
 	Category    string   `json:"category,omitempty"`
 	Labels      []string `json:"labels,omitempty"`
 	Refs        []SDDRef `json:"sdd,omitempty"`
-	ClientRef   string   `json:"client_ref"`
+	// Priority is 0 (none) to 4 (low), 1 being urgent.
+	Priority  *int   `json:"priority,omitempty"`
+	ClientRef string `json:"client_ref"`
 	// Fresh says ClientRef was never sent before, so a provider may skip
 	// its idempotency lookup. Retries of an earlier create leave it false.
 	Fresh bool `json:"fresh,omitempty"`
@@ -259,6 +261,79 @@ type UpdateIssueInput struct {
 	Description *string  `json:"description,omitempty"`
 	Labels      []string `json:"labels,omitempty"`
 	AddRefs     []SDDRef `json:"add_sdd,omitempty"`
+	// AddLinks and RemoveLinks edit the issue's typed links; both are
+	// idempotent. Priority sets the priority (0 clears it).
+	AddLinks    []IssueLink `json:"add_links,omitempty"`
+	RemoveLinks []IssueLink `json:"remove_links,omitempty"`
+	Priority    *int        `json:"priority,omitempty"`
+}
+
+// LinkTypes lists the valid IssueLink.Type values.
+var LinkTypes = []string{"blocks", "relates", "duplicates"}
+
+// ValidLinkType reports whether t is one of LinkTypes.
+func ValidLinkType(t string) bool {
+	for _, v := range LinkTypes {
+		if v == t {
+			return true
+		}
+	}
+	return false
+}
+
+// HasLink reports whether the issue holds link l, comparing ids exactly.
+func (i Issue) HasLink(l IssueLink) bool {
+	for _, have := range i.Links {
+		if have == l {
+			return true
+		}
+	}
+	return false
+}
+
+// AddLinks appends links not already held; it reports whether anything changed.
+func (i *Issue) AddLinks(links []IssueLink) bool {
+	changed := false
+	for _, l := range links {
+		if !i.HasLink(l) {
+			i.Links = append(i.Links, l)
+			changed = true
+		}
+	}
+	return changed
+}
+
+// RemoveLinks drops the given links; it reports whether anything changed.
+func (i *Issue) RemoveLinks(links []IssueLink) bool {
+	changed := false
+	for _, l := range links {
+		kept := i.Links[:0:0]
+		for _, have := range i.Links {
+			if have == l {
+				changed = true
+				continue
+			}
+			kept = append(kept, have)
+		}
+		i.Links = kept
+	}
+	if len(i.Links) == 0 {
+		i.Links = nil
+	}
+	return changed
+}
+
+// SetPriority sets the priority (0 stores 0); it reports whether it changed.
+func (i *Issue) SetPriority(p *int) bool {
+	if p == nil {
+		return false
+	}
+	if i.Priority != nil && *i.Priority == *p {
+		return false
+	}
+	v := *p
+	i.Priority = &v
+	return true
 }
 
 // TrackerCaps is what a backend declares in its capabilities response.

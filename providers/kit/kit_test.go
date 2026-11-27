@@ -364,3 +364,25 @@ func TestCredentialsPathFallsBackToLegacySddDir(t *testing.T) {
 		t.Fatalf("both: got %q, want %q", got, want)
 	}
 }
+
+func TestIssuePrecedenceKit(t *testing.T) {
+	m := &mem{issues: []tracker.Issue{{ID: "1", Title: "a", Status: tracker.IssueStatus{Category: tracker.CategoryUnstarted}}}}
+	p := &precMem{mem: m}
+	req := `{"protocol":"sdd.adapter/v1","kind":"tracker","op":"update_issue","args":{"id":"1","add_links":[{"type":"blocks","id":"2"}],"remove_links":[{"type":"relates","id":"3"}],"priority":2}}`
+	if code, resp := serve(t, kit.Tracker(p), req); code != 0 || resp.Error != nil {
+		t.Fatalf("%d %+v", code, resp.Error)
+	}
+	if len(p.got.AddLinks) != 1 || p.got.AddLinks[0].ID != "2" || len(p.got.RemoveLinks) != 1 || p.got.Priority == nil || *p.got.Priority != 2 {
+		t.Fatalf("the kit dropped update fields: %+v", p.got)
+	}
+}
+
+type precMem struct {
+	*mem
+	got tracker.UpdateIssueInput
+}
+
+func (p *precMem) UpdateIssue(id string, in tracker.UpdateIssueInput) (tracker.Issue, error) {
+	p.got = in
+	return p.mem.UpdateIssue(id, in)
+}

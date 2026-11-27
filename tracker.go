@@ -44,6 +44,15 @@ const (
 	OpComment         = tracker.OpComment
 )
 
+// OpenCategory reports whether work in category c is not finished.
+func OpenCategory(c string) bool { return tracker.OpenCategory(c) }
+
+// LinkTypes lists the valid IssueLink.Type values.
+var LinkTypes = tracker.LinkTypes
+
+// ValidLinkType reports whether t is one of LinkTypes.
+func ValidLinkType(t string) bool { return tracker.ValidLinkType(t) }
+
 // NewNonce returns random hex for one create; retries reuse it.
 func NewNonce() string { return tracker.NewNonce() }
 

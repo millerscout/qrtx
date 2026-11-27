@@ -230,6 +230,7 @@ func (f *fileTracker) CreateIssue(in CreateIssueInput) (Issue, error) {
 			Status:      IssueStatus{Category: cat},
 			Labels:      in.Labels,
 			Refs:        in.Refs,
+			Priority:    in.Priority,
 			ClientRef:   in.ClientRef,
 			UpdatedAt:   f.stamp(),
 		}
@@ -275,6 +276,15 @@ func (f *fileTracker) UpdateIssue(id string, in UpdateIssueInput) (Issue, error)
 			is.Labels, changed = in.Labels, true
 		}
 		if is.AddRefs(in.AddRefs) {
+			changed = true
+		}
+		if is.AddLinks(in.AddLinks) {
+			changed = true
+		}
+		if is.RemoveLinks(in.RemoveLinks) {
+			changed = true
+		}
+		if is.SetPriority(in.Priority) {
 			changed = true
 		}
 		return changed, nil

@@ -25,6 +25,9 @@ type ProposeContextOpts struct {
 type PackageOverlap struct {
 	OtherSlug string   `json:"other_slug"`
 	Shared    []string `json:"shared_packages"`
+	// GoesFirst names the change that goes first when the linked issues of
+	// the two changes are related by blocks, e.g. "x (A blocks B)".
+	GoesFirst string `json:"goes_first,omitempty"`
 }
 
 // GraphNeighbor is one contract import edge touching the draft packages.
@@ -127,6 +130,10 @@ func ProposeContext(repoRoot, slug string, opts ProposeContextOpts) (ProposeCont
 		out.Warnings = append(out.Warnings, requestOverlapWarning(sib))
 		sort.Slice(out.Overlaps, func(i, j int) bool { return out.Overlaps[i].OtherSlug < out.Overlaps[j].OtherSlug })
 		sort.Strings(out.Warnings)
+	}
+
+	if warn := orderOverlaps(repoRoot, slug, man.Issues, out.Overlaps); warn != "" {
+		out.Warnings = append(out.Warnings, warn)
 	}
 
 	if opts.RefreshGraph {
@@ -352,6 +359,9 @@ func WriteProposeContextHuman(w io.Writer, rep ProposeContextReport) error {
 	} else {
 		for _, o := range rep.Overlaps {
 			_, _ = fmt.Fprintf(w, "  %s shares %s\n", o.OtherSlug, strings.Join(o.Shared, ", "))
+			if o.GoesFirst != "" {
+				_, _ = fmt.Fprintf(w, "    goes first: %s\n", o.GoesFirst)
+			}
 		}
 	}
 	_, _ = fmt.Fprintln(w, "\ngraph_neighbors:")

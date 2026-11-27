@@ -163,23 +163,35 @@ func (e *execTracker) checkIssue(op string, is Issue) (Issue, error) {
 	return is, nil
 }
 
+// maxListPages caps the pages one ListIssues call follows.
+var maxListPages = 50
+
 func (e *execTracker) ListIssues(f IssueFilter) ([]Issue, error) {
+	all, _, err := e.listComplete(f)
+	return all, err
+}
+
+// listComplete is ListIssues that also says whether the listing ended on its
+// own (complete) or at the page cap (not complete).
+func (e *execTracker) listComplete(f IssueFilter) ([]Issue, bool, error) {
 	var all []Issue
-	for page := 0; page < 50; page++ {
+	complete := false
+	for page := 0; page < maxListPages; page++ {
 		var res struct {
 			Issues []Issue `json:"issues"`
 			Cursor string  `json:"cursor"`
 		}
 		if err := e.call(OpListIssues, map[string]any{"filter": f}, &res); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		for _, is := range res.Issues {
 			if _, err := e.checkIssue(OpListIssues, is); err != nil {
-				return nil, err
+				return nil, false, err
 			}
 		}
 		all = append(all, res.Issues...)
 		if res.Cursor == "" || (f.Limit > 0 && len(all) >= f.Limit) {
+			complete = true
 			break
 		}
 		f.Cursor = res.Cursor
@@ -190,7 +202,7 @@ func (e *execTracker) ListIssues(f IssueFilter) ([]Issue, error) {
 	if all == nil {
 		all = []Issue{}
 	}
-	return all, nil
+	return all, complete, nil
 }
 
 func (e *execTracker) GetIssue(id string) (Issue, error) {
@@ -222,6 +234,15 @@ func (e *execTracker) UpdateIssue(id string, in UpdateIssueInput) (Issue, error)
 	}
 	if len(in.AddRefs) > 0 {
 		args["add_sdd"] = in.AddRefs
+	}
+	if len(in.AddLinks) > 0 {
+		args["add_links"] = in.AddLinks
+	}
+	if len(in.RemoveLinks) > 0 {
+		args["remove_links"] = in.RemoveLinks
+	}
+	if in.Priority != nil {
+		args["priority"] = *in.Priority
 	}
 	var is Issue
 	if err := e.call(OpUpdateIssue, args, &is); err != nil {

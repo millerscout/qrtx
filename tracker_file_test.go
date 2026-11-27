@@ -171,3 +171,40 @@ func lineIDs(lines []string) []string {
 	}
 	return out
 }
+
+func TestTrackerFileLinks(t *testing.T) {
+	root := t.TempDir()
+	ft := newFileTracker(root)
+	a, _ := ft.CreateIssue(CreateIssueInput{Title: "A"})
+	b, _ := ft.CreateIssue(CreateIssueInput{Title: "B", Priority: intp(3)})
+	if b.Priority == nil || *b.Priority != 3 {
+		t.Fatalf("create ignored priority: %+v", b)
+	}
+	link := IssueLink{Type: "blocks", ID: b.ID}
+	for i := 0; i < 2; i++ {
+		got, err := ft.UpdateIssue(a.ID, UpdateIssueInput{AddLinks: []IssueLink{link}})
+		if err != nil || len(got.Links) != 1 || got.Links[0] != link {
+			t.Fatalf("link %d: %+v %v", i, got.Links, err)
+		}
+	}
+	before := strings.Join(readIssueLines(t, root), "\n")
+	if _, err := ft.UpdateIssue(a.ID, UpdateIssueInput{AddLinks: []IssueLink{link}}); err != nil {
+		t.Fatal(err)
+	}
+	if after := strings.Join(readIssueLines(t, root), "\n"); after != before {
+		t.Fatalf("a repeated link rewrote the file:\n%s\n%s", before, after)
+	}
+	got, err := ft.UpdateIssue(b.ID, UpdateIssueInput{Priority: intp(2)})
+	if err != nil || got.Priority == nil || *got.Priority != 2 {
+		t.Fatalf("priority: %+v %v", got, err)
+	}
+	got, err = ft.UpdateIssue(a.ID, UpdateIssueInput{RemoveLinks: []IssueLink{link}})
+	if err != nil || len(got.Links) != 0 {
+		t.Fatalf("unlink: %+v %v", got.Links, err)
+	}
+	if strings.Contains(strings.Join(readIssueLines(t, root), "\n"), `"links"`) {
+		t.Fatal("an empty links key was written")
+	}
+}
+
+func intp(n int) *int { return &n }

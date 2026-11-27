@@ -1,6 +1,7 @@
 package qrtx
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -169,9 +170,10 @@ var checkRetryDelay = 10 * time.Second
 
 const maxBacklog = 20
 
-// proposeBacklog lists open issues for propose-context. A repo with no
-// tracker block and no issues file has no backlog and gets no warning.
-func proposeBacklog(repoRoot string) ([]Issue, string) {
+// proposeTracker opens the repository's tracker for propose-context, with
+// plugin calls capped at 10s. A repo with no tracker block and no issues file
+// has no tracker and gets no warning.
+func proposeTracker(repoRoot string) (*Tracker, string) {
 	cfg, err := LoadRepoConfig(repoRoot)
 	if err != nil {
 		return nil, ""
@@ -185,8 +187,21 @@ func proposeBacklog(repoRoot string) ([]Issue, string) {
 	if err != nil {
 		return nil, "tracker: " + err.Error()
 	}
-	if e, ok := t.IssueTracker.(*execTracker); ok && e.timeout > 10*time.Second {
-		e.timeout = 10 * time.Second
+	if e, ok := t.IssueTracker.(*execTracker); ok && e.timeout > proposeTrackerBudget {
+		e.timeout = proposeTrackerBudget
+	}
+	return t, ""
+}
+
+// proposeTrackerBudget bounds propose-context's tracker reads.
+const proposeTrackerBudget = 10 * time.Second
+
+// proposeBacklog lists open issues for propose-context. A repo with no
+// tracker block and no issues file has no backlog and gets no warning.
+func proposeBacklog(repoRoot string) ([]Issue, string) {
+	t, warn := proposeTracker(repoRoot)
+	if t == nil {
+		return nil, warn
 	}
 	list, err := t.ListIssues(IssueFilter{Categories: []string{CategoryBacklog, CategoryUnstarted, CategoryStarted}, Limit: maxBacklog})
 	if err != nil {
@@ -196,4 +211,99 @@ func proposeBacklog(repoRoot string) ([]Issue, string) {
 		list = list[:maxBacklog]
 	}
 	return list, ""
+}
+
+// orderOverlaps sets GoesFirst on each overlap whose changes link issues that
+// are related by blocks: A blocks B puts the change linking A first. It reads
+// each linked issue once with GetIssue, under the same 10s budget as
+// proposeBacklog, and returns a warning instead when the tracker fails or the
+// budget runs out. Links live on issues, not in manifests.
+func orderOverlaps(repoRoot, slug string, mine []string, overlaps []PackageOverlap) string {
+	theirs := map[string][]string{}
+	need := false
+	for _, o := range overlaps {
+		man, err := ParseChangeFile(repoRoot, o.OtherSlug)
+		if err != nil || len(man.Issues) == 0 || len(mine) == 0 {
+			continue
+		}
+		theirs[o.OtherSlug] = man.Issues
+		need = true
+	}
+	if !need {
+		return ""
+	}
+	t, warn := proposeTracker(repoRoot)
+	if t == nil {
+		if warn == "" {
+			return ""
+		}
+		return "order between overlapping changes not checked: " + warn
+	}
+	deadline := time.Now().Add(proposeTrackerBudget)
+	cache := map[string]Issue{}
+	norm := func(ref string) (backend, id, full string) {
+		backend, id = ParseIssueRef(ref, t.Backend)
+		return backend, id, backend + ":" + id
+	}
+	get := func(ref string) (Issue, error) {
+		backend, id, full := norm(ref)
+		if is, ok := cache[full]; ok {
+			return is, nil
+		}
+		if time.Now().After(deadline) {
+			return Issue{}, fmt.Errorf("timed out after %s", proposeTrackerBudget)
+		}
+		impl, err := t.For(backend)
+		if err != nil {
+			return Issue{}, err
+		}
+		is, err := impl.GetIssue(id)
+		if adapterCode(err) == ErrCodeNotFound {
+			err = nil // a stale ref in a manifest links nothing
+		}
+		if err != nil {
+			return Issue{}, err
+		}
+		cache[full] = is
+		return is, nil
+	}
+	blocks := func(from, to string) (bool, error) {
+		is, err := get(from)
+		if err != nil {
+			return false, err
+		}
+		backend, _, _ := norm(from)
+		_, _, want := norm(to)
+		for _, l := range is.Links {
+			if l.Type == "blocks" && normalizeLink(l.ID, backend) == want {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+	for i, o := range overlaps {
+		var firsts []string
+		for _, a := range theirs[o.OtherSlug] {
+			for _, b := range mine {
+				_, _, fa := norm(a)
+				_, _, fb := norm(b)
+				ok, err := blocks(a, b)
+				if err != nil {
+					return "order between overlapping changes not checked: tracker unavailable: " + err.Error()
+				}
+				if ok {
+					firsts = append(firsts, fmt.Sprintf("%s (%s blocks %s)", o.OtherSlug, fa, fb))
+				}
+				ok, err = blocks(b, a)
+				if err != nil {
+					return "order between overlapping changes not checked: tracker unavailable: " + err.Error()
+				}
+				if ok {
+					firsts = append(firsts, fmt.Sprintf("%s (%s blocks %s)", slug, fb, fa))
+				}
+			}
+		}
+		overlaps[i].GoesFirst = strings.Join(firsts, "; ")
+	}
+	return ""
 }

@@ -45,3 +45,47 @@ func TestMarker(t *testing.T) {
 		}
 	}
 }
+
+func TestIssuePrecedence(t *testing.T) {
+	two := 2
+	p := Precedence{Priority: &two, Links: []IssueLink{{Type: "blocks", ID: "7"}}}
+	body := EncodeMarker(EncodePrec("Some text.", p), Marker{ClientRef: "abc", Refs: []SDDRef{{Repo: "r"}}})
+	lines := strings.Split(body, "\n")
+	if !strings.HasPrefix(lines[len(lines)-1], "<!-- sdd:v1 ") || !strings.Contains(body, "<!-- sdd-prec:v1 ") {
+		t.Fatalf("the sdd marker must stay last, after the prec line: %q", body)
+	}
+
+	// An older plugin decodes only the sdd marker and rewrites it whole; the
+	// prec line stays in the description it hands back.
+	oldDesc, oldM, ok := DecodeMarker(body)
+	if !ok || oldM.ClientRef != "abc" {
+		t.Fatalf("old decode: %+v %v", oldM, ok)
+	}
+	oldM.Refs = append(oldM.Refs, SDDRef{Repo: "r", Change: "c"})
+	rewritten := EncodeMarker(oldDesc, oldM)
+
+	desc, m, _ := DecodeMarker(rewritten)
+	desc, got, ok := DecodePrec(desc)
+	if !ok || desc != "Some text." || len(m.Refs) != 2 || got.Priority == nil || *got.Priority != 2 || len(got.Links) != 1 || got.Links[0].ID != "7" {
+		t.Fatalf("prec lost across an old rewrite: %q %+v %+v", desc, m, got)
+	}
+
+	if out := EncodePrec(EncodePrec("x", p), Precedence{}); out != "x" {
+		t.Fatalf("empty precedence must remove the line: %q", out)
+	}
+	if _, _, ok := DecodePrec("text\n\n<!-- sdd-prec:v1 {bad -->"); ok {
+		t.Fatal("malformed prec accepted")
+	}
+
+	var prec Precedence
+	if !prec.Apply(UpdateIssueInput{AddLinks: []IssueLink{{Type: "blocks", ID: "1"}}, Priority: &two}) {
+		t.Fatal("apply reported no change")
+	}
+	if prec.Apply(UpdateIssueInput{AddLinks: []IssueLink{{Type: "blocks", ID: "1"}}, Priority: &two}) {
+		t.Fatal("second apply must be a no-op")
+	}
+	prec.Apply(UpdateIssueInput{RemoveLinks: []IssueLink{{Type: "blocks", ID: "1"}}})
+	if len(prec.Links) != 0 || prec.Priority == nil {
+		t.Fatalf("remove: %+v", prec)
+	}
+}

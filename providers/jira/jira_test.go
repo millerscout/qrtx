@@ -178,3 +178,41 @@ func TestCreateRetry(t *testing.T) {
 		t.Fatalf("lagged search made a duplicate: %d issues", fake.Count())
 	}
 }
+
+func TestJiraPrecedence(t *testing.T) {
+	fake, p, _ := setup(t)
+	two := 2
+	a, err := p.CreateIssue(tracker.CreateIssueInput{Title: "A", ClientRef: "pa", Priority: &two})
+	if err != nil || a.Priority == nil || *a.Priority != 2 {
+		t.Fatalf("create with priority: %+v %v", a, err)
+	}
+	b, _ := p.CreateIssue(tracker.CreateIssueInput{Title: "B", ClientRef: "pb"})
+	link := tracker.IssueLink{Type: "blocks", ID: b.ID}
+	one := 1
+	got, err := p.UpdateIssue(a.ID, tracker.UpdateIssueInput{AddLinks: []tracker.IssueLink{link}, Priority: &one, AddRefs: []tracker.SDDRef{{Repo: "r", Change: "rename"}}})
+	if err != nil || len(got.Links) != 1 || got.Links[0] != link || got.Priority == nil || *got.Priority != 1 || len(got.Refs) != 1 {
+		t.Fatalf("link: %+v %v", got, err)
+	}
+	list, _, _ := p.ListIssuesPage(tracker.IssueFilter{})
+	found := false
+	for _, is := range list {
+		found = found || (is.ID == a.ID && len(is.Links) == 1)
+	}
+	if !found {
+		t.Fatalf("list lost the link: %+v", list)
+	}
+
+	// S10: an older plugin rewrites the whole sdd property.
+	fake.Mu.Lock()
+	raw, _ := json.Marshal(map[string]any{"sdd": []tracker.SDDRef{{Repo: "r", Change: "rename"}, {Repo: "r", Change: "release"}}})
+	fake.Issues[0].Properties["sdd"] = raw
+	fake.Mu.Unlock()
+	after, err := p.GetIssue(a.ID)
+	if err != nil || len(after.Links) != 1 || after.Priority == nil || *after.Priority != 1 || len(after.Refs) != 2 {
+		t.Fatalf("links or priority lost after an old rewrite: %+v %v", after, err)
+	}
+	got, _ = p.UpdateIssue(a.ID, tracker.UpdateIssueInput{RemoveLinks: []tracker.IssueLink{link}})
+	if len(got.Links) != 0 || got.Priority == nil || *got.Priority != 1 {
+		t.Fatalf("unlink: %+v", got)
+	}
+}

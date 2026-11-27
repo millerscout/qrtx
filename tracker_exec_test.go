@@ -88,3 +88,23 @@ func TestTrackerExec(t *testing.T) {
 		}
 	})
 }
+
+func TestTrackerExecLinks(t *testing.T) {
+	root, dir := fakeRepo(t, "")
+	seedFake(t, dir,
+		Issue{ID: "F-1", Title: "a", Status: IssueStatus{Category: CategoryBacklog}},
+		Issue{ID: "F-2", Title: "b", Status: IssueStatus{Category: CategoryBacklog}})
+	tr := openT(t, root)
+	two := 2
+	got, err := tr.UpdateIssue("F-1", UpdateIssueInput{AddLinks: []IssueLink{{Type: "blocks", ID: "F-2"}}, Priority: &two})
+	if err != nil || len(got.Links) != 1 || got.Priority == nil || *got.Priority != 2 {
+		t.Fatalf("exec dropped add_links or priority: %+v %v", got, err)
+	}
+	if got, err = tr.UpdateIssue("F-1", UpdateIssueInput{RemoveLinks: []IssueLink{{Type: "blocks", ID: "F-2"}}}); err != nil || len(got.Links) != 0 {
+		t.Fatalf("exec dropped remove_links: %+v %v", got, err)
+	}
+	zero := 0
+	if got, err = tr.UpdateIssue("F-1", UpdateIssueInput{Priority: &zero}); err != nil || got.Priority == nil || *got.Priority != 0 {
+		t.Fatalf("priority 0 must be sent: %+v %v", got, err)
+	}
+}

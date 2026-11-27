@@ -67,8 +67,9 @@ See [`examples/tic-tac-toe`](examples/tic-tac-toe) for a complete planned change
 | `qrtx constitution show [--json]` / `init [--force]` | List the project's rules; write a starter `sdd/constitution.md` |
 | `qrtx init [--tracker <backend> …]` | Set up a repository or folder: skills, constitution, merge driver, tracker |
 | `qrtx tracker setup github\|jira [flags]` | Configure a tracker and bind its credentials |
-| `qrtx tracker add` / `list` / `get` / `close` | The project backlog: `sdd/issues.jsonl` by default, or any tracker plugin |
-| `qrtx tracker start <ref> <slug>` | Turn an issue into a change and link them both ways |
+| `qrtx tracker add` / `list` / `get` / `close` | The project backlog: `sdd/issues.jsonl` by default, or any tracker plugin. `add --priority N` sets a priority; `list` orders by it and marks blocked issues |
+| `qrtx tracker link <a> blocks\|relates\|duplicates <b>` / `unlink` / `priority <ref> <0-4>` | Record the order between issues and their priority, on any backend |
+| `qrtx tracker start <ref> <slug> [--force]` | Turn an issue into a change and link them both ways; refuses an issue an open issue blocks, unless `--force` |
 | `qrtx tracker from-deferred --change <slug>` | Put a change's `## Deferred` work in the backlog |
 | `qrtx sync heartbeat` / `claim` / `inbox` / `status` | Several sessions in one repo: leases, claims, and an inbox of what the others did ([docs/sync.md](docs/sync.md)) |
 | `qrtx tracker outbox` / `check` / `init` | Pending tracker writes; plugin conformance check; register the `issues.jsonl` merge driver |

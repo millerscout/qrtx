@@ -63,8 +63,8 @@ qrtx always calls `capabilities` first, and never calls an operation the plugin 
 | `capabilities` | `{}` | `{"protocols":["sdd.adapter/v1"],"interfaces":["tracker@v1"],"ops":[…],"link_types":[…]}` |
 | `list_issues` | `{"filter":{"categories":[…],"labels":[…],"assignee":"","text":"","change":"","limit":0,"cursor":""}}` | `{"issues":[…],"cursor":"…"}` |
 | `get_issue` | `{"id":"…"}` | an issue |
-| `create_issue` | `{"title","description","category","labels","sdd":[…],"client_ref","fresh"}` | the issue |
-| `update_issue` | `{"id","title","description","labels","add_sdd":[…]}`; absent fields are left alone | the issue |
+| `create_issue` | `{"title","description","category","labels","sdd":[…],"priority","client_ref","fresh"}` | the issue |
+| `update_issue` | `{"id","title","description","labels","add_sdd":[…],"add_links":[…],"remove_links":[…],"priority"}`; absent fields are left alone | the issue |
 | `transition_issue` | `{"id","category","native"}`; `native` is set when `status_map` names one | the issue |
 | `comment` | `{"id","markdown","client_ref"}` | `{}` |
 
@@ -94,6 +94,8 @@ See [`schema/tracker/v1/issue.json`](schema/tracker/v1/issue.json). The required
 - **Unknown fields:** a plugin keeps backend fields in `extra`. Unknown top-level keys and `extra` MUST survive a read-modify-write unchanged.
 - **`sdd` refs:** each entry ties the issue to a repo, a project and a change, and can add `role`, `phase`, `tasks`, `scenarios`, `branch` and `commit`. `role: "deferred"` marks work a change split off for later. Archiving that change does not close it.
 
+- **Links and priority:** `add_links` and `remove_links` are lists of `{"type":"blocks|relates|duplicates","id":"…"}`, held on the source issue (`A.links` has `{blocks, B}`; `id` is a bare id on the same backend). Both are idempotent. `priority` is 0 (none) to 4 (low), 1 being urgent; 0 clears it. A plugin that declares `update_issue` SHOULD store them and return them as the issue's `links` and `priority`. `qrtx tracker link`, `unlink` and `priority` read the returned issue and report a backend that did not store the change. `qrtx tracker start` lists the open issues and refuses to start an issue that an open one blocks, so `list_issues` SHOULD return `links` too (without `list_issues` the check is skipped with a warning).
+
 ### Keeping `sdd` refs in a backend that has no field for them
 
 A plugin MUST round-trip `sdd` and `client_ref`. When the backend has no custom field for them, add a machine block at the end of the description and strip it again on read:
@@ -101,6 +103,15 @@ A plugin MUST round-trip `sdd` and `client_ref`. When the backend has no custom 
 ```markdown
 <!-- sdd:v1 {"client_ref":"3f9c0a1b2c3d","sdd":[{"repo":"github.com/acme/shop","change":"dark-mode"}]} -->
 ```
+
+Keep links and priority apart from the `sdd` marker, because a plugin that predates them rewrites the whole `sdd` marker or property and would erase them. The first-party plugins use a second marker line before the `sdd` one, and the Jira plugin an issue property of its own:
+
+```markdown
+<!-- sdd-prec:v1 {"priority":2,"links":[{"type":"blocks","id":"124"}]} -->
+<!-- sdd:v1 {"client_ref":"3f9c0a1b2c3d","sdd":[…]} -->
+```
+
+The `sdd:v1` marker stays the last line. Jira keeps `{"priority":…,"links":[…]}` in the issue property `sdd-precedence`.
 
 Labels such as `sdd:change/dark-mode` and `sdd:project/shop` are optional extras that let people filter in the tracker's own UI.
 
@@ -112,6 +123,7 @@ Labels such as `sdd:change/dark-mode` and `sdd:project/shop` are optional extras
 | `qrtx change archive <slug>` | `comment` (unless `comments: off`; dropped if the plugin has no `comment`), then `transition_issue(completed)` only when no other active change lists the issue in its `issues:` |
 | `qrtx tracker from-deferred --change <slug>` | `create_issue` per `## Deferred` bullet, with `role: deferred` |
 
+- **Direct writes:** `qrtx tracker link`, `unlink` and `priority` call `update_issue` at once, as `close` does, and check the issue it returns. They are not queued, because the re-read would run before the outbox drained.
 - **Where the outbox lives:** in `<git common dir>/sdd/`, or in `.sdd/` outside git.
 - **Draining:** each `qrtx tracker` command drains the outbox before and after its own work.
 - **Watching it:** `qrtx tracker outbox` shows what is pending.

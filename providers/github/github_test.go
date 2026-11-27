@@ -186,3 +186,57 @@ func TestCreateFreshSkipsLookup(t *testing.T) {
 		t.Fatalf("fresh create: %+v %v count=%d slept=%d", is, err, fake.Count(), slept)
 	}
 }
+
+func TestGitHubPrecedence(t *testing.T) {
+	fake, p, _ := setup(t)
+	two := 2
+	a, err := p.CreateIssue(tracker.CreateIssueInput{Title: "A", Description: "the rename", ClientRef: "pa", Priority: &two})
+	if err != nil || a.Priority == nil || *a.Priority != 2 {
+		t.Fatalf("create with priority: %+v %v", a, err)
+	}
+	b, _ := p.CreateIssue(tracker.CreateIssueInput{Title: "B", ClientRef: "pb"})
+	link := tracker.IssueLink{Type: "blocks", ID: b.ID}
+	one := 1
+	got, err := p.UpdateIssue(a.ID, tracker.UpdateIssueInput{AddLinks: []tracker.IssueLink{link}, Priority: &one, AddRefs: []tracker.SDDRef{{Repo: "r", Change: "rename"}}})
+	if err != nil || len(got.Links) != 1 || got.Links[0] != link || got.Priority == nil || *got.Priority != 1 || got.Description != "the rename" || got.ClientRef != "pa" {
+		t.Fatalf("link: %+v %v", got, err)
+	}
+	if again, _ := p.UpdateIssue(a.ID, tracker.UpdateIssueInput{AddLinks: []tracker.IssueLink{link}}); len(again.Links) != 1 {
+		t.Fatalf("link is not idempotent: %+v", again.Links)
+	}
+	// get lists the link; list does too (the start check reads it there).
+	list, _, _ := p.ListIssuesPage(tracker.IssueFilter{})
+	found := false
+	for _, is := range list {
+		found = found || (is.ID == a.ID && len(is.Links) == 1)
+	}
+	if !found {
+		t.Fatalf("list lost the link: %+v", list)
+	}
+	if strings.Contains(got.Description, "sdd-prec") {
+		t.Fatalf("marker leaked: %q", got.Description)
+	}
+
+	// S10: an older plugin appends a ref, rewriting the sdd marker whole.
+	fake.Mu.Lock()
+	body := fake.Issues[0].Body
+	oldDesc, m, _ := tracker.DecodeMarker(body)
+	m.Refs = append(m.Refs, tracker.SDDRef{Repo: "r", Change: "release"})
+	fake.Issues[0].Body = tracker.EncodeMarker(oldDesc, m)
+	fake.Mu.Unlock()
+	after, err := p.GetIssue(a.ID)
+	if err != nil || len(after.Links) != 1 || after.Priority == nil || *after.Priority != 1 || len(after.Refs) != 2 || after.Description != "the rename" {
+		t.Fatalf("links or priority lost after an old rewrite: %+v %v", after, err)
+	}
+
+	// A description edit keeps them; removing the last of both drops the line.
+	desc := "new text"
+	if got, _ = p.UpdateIssue(a.ID, tracker.UpdateIssueInput{Description: &desc}); len(got.Links) != 1 || got.Description != "new text" {
+		t.Fatalf("description edit: %+v", got)
+	}
+	zero := 0
+	got, _ = p.UpdateIssue(a.ID, tracker.UpdateIssueInput{RemoveLinks: []tracker.IssueLink{link}, Priority: &zero})
+	if len(got.Links) != 0 || got.Priority == nil || *got.Priority != 0 {
+		t.Fatalf("unlink: %+v", got)
+	}
+}

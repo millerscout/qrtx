@@ -75,7 +75,7 @@ tracker:
 
 How each operation works:
 - **Started:** moving an issue to `started` adds the label, creating it if the repository doesn't have it.
-- **Hidden marker:** `client_ref` and the `sdd` links live in a hidden marker on the last line of the issue body (`<!-- sdd:v1 {…} -->`), which `description` never shows.
+- **Hidden marker:** `client_ref` and the `sdd` links live in a hidden marker on the last line of the issue body (`<!-- sdd:v1 {…} -->`), which `description` never shows. Issue links (`blocks`, …) and priority live in a second marker line just before it (`<!-- sdd-prec:v1 {…} -->`).
 - **Idempotency:** a create first looks at your 100 newest issues for the same `client_ref`, and looks again 3 seconds later before creating. GitHub's issue list shows a new issue only 3–4 seconds after it is created, so a create retried within about 3 seconds of the first can still duplicate. qrtx's own retries come from its outbox on a later command, well outside that window. The issue search API isn't used because it lags even more. `qrtx tracker from-deferred` also skips bullets whose issue already exists, so re-running it weeks later creates no duplicates.
 - **Listing:** pull requests are skipped, and listing pages through any number of issues.
 - **Retries:** comments and creates are never retried by the plugin. qrtx's outbox retries them, and the `client_ref` check keeps a retried create from duplicating.
@@ -105,7 +105,7 @@ How each operation works:
 - **Cancelling:** `canceled` uses a done transition and sets the first `canceled_resolutions` value when the transition screen has a Resolution field.
 - **API version:** the plugin uses REST v3. Descriptions and comments are sent as Atlassian Document Format (paragraphs, line breaks, inline code and links).
 - **Idempotency:** a create carries the label `sdd-cref-<client_ref>`, and a create first searches for that label, three times over about 6 seconds, because Jira's search index lags. That label is hidden from `labels`.
-- **sdd links:** the `sdd` links are stored in the issue property `sdd`.
+- **sdd links:** the `sdd` links are stored in the issue property `sdd`. Issue links (`blocks`, …) and priority are stored in the issue property `sdd-precedence`.
 
 ## Writing a provider
 
