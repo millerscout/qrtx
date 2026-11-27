@@ -145,6 +145,7 @@ func TestDaemonStatus(t *testing.T) {
 // downPlugin is a shell tracker plugin whose answers depend on a mode file.
 func downPlugin(t *testing.T, dir string) string {
 	t.Helper()
+	skipOnWindows(t, "sh-script plugins")
 	bin := t.TempDir()
 	script := fmt.Sprintf(`#!/bin/sh
 cat >/dev/null
@@ -267,7 +268,10 @@ func TestDaemonAutostart(t *testing.T) {
 	if n := strings.Count(string(logb), "started ("); n != 1 {
 		t.Fatalf("%d daemons started:\n%s", n, logb)
 	}
-	// A killed daemon is replaced by the next heartbeat.
+	// A killed daemon is replaced by the next heartbeat. On Windows a killed
+	// holder's lock file looks held until the 60s stale rule (filed for
+	// sync-hardening: check whether the owner pid is alive).
+	skipOnWindows(t, "detecting a killed lock holder before the 60s stale rule")
 	pid := syncStatus(t, root).Daemon.PID
 	if p, err := os.FindProcess(pid); err == nil {
 		_ = p.Signal(syscall.SIGKILL)

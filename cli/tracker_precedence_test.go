@@ -141,6 +141,7 @@ func TestTrackerLinkProviders(t *testing.T) {
 
 // S8: a plugin that declares update_issue but drops the new fields.
 func TestTrackerLinkDropped(t *testing.T) {
+	skipOnWindows(t, "sh-script plugins")
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("needs sh")
 	}

@@ -6,6 +6,16 @@
 
 - **Go 1.24 is the minimum** (change `go-minimum`; was Go 1.22). On macOS 26, binaries that Go 1.22's internal linker builds with cgo on abort at start with `dyld: missing LC_UUID load command`, which hit `qrtx`'s test binaries and the `qrtx-tracker-*` plugins. Go 1.24 is the first release whose internal linker writes LC_UUID, so CI no longer forces external linking. With the default `GOTOOLCHAIN=auto` an older `go` command fetches 1.24 on its own; with `GOTOOLCHAIN=local` it refuses to build. Go 1.22 and 1.23 are end of life.
 
+### Testing
+
+- **Regression suite** (change `regression-suite`):
+  - CI now runs on Windows, plus race-detector, fuzz and e2e jobs.
+  - New `e2e/` package drives the built binaries like Claude Code (hooks, `CLAUDE_ENV_FILE`, worktrees, daemons), with known-bug scenarios gated by `QRTX_E2E_KNOWN_BUGS`.
+  - JSON goldens for `sync status`/`inbox`, `tracker list`/`check`, the backlog and event lines.
+  - Fuzz targets for the merge driver, the marker, ADF and manifest editing.
+  - Nightly real-GitHub check and a 5-minute soak.
+  - See `docs/testing.md`.
+
 ## v0.5.0 — 2026-11-27
 
 ### Changed

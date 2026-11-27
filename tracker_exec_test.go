@@ -55,6 +55,9 @@ func TestTrackerExec(t *testing.T) {
 		})
 	}
 	t.Run("plugin reports its own deadline", func(t *testing.T) {
+		// Race-enabled binaries (the plugin is the test binary) sleep 1s at
+		// exit by default, which would outlast the 200ms margin under -race.
+		t.Setenv("GORACE", "atexit_sleep_ms=0")
 		setFakeMode(t, dir, "stall")
 		defer setFakeMode(t, dir, "")
 		tr, _ := OpenTracker(root)

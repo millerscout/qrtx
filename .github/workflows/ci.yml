@@ -8,8 +8,13 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   test:
+    name: test (${{ matrix.os }}, go ${{ matrix.go }}, cgo ${{ matrix.cgo }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -17,9 +22,18 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         go: ["1.24.x", "stable"]
         cgo: ["0", "1"]
+        include:
+          # Windows: the full suite on current Go without cgo. Tests that need
+          # sh, symlinks or Unix signals skip with a "windows:" reason.
+          - os: windows-latest
+            go: stable
+            cgo: "0"
     env:
       CGO_ENABLED: ${{ matrix.cgo }}
     steps:
+      # Windows checkouts convert line endings by default, which breaks gofmt
+      # and byte-compared golden files.
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
@@ -34,3 +48,62 @@ jobs:
         run: go run ./cmd/qrtx change verify --change tic-tac-toe
         env:
           QRTX_REPO: examples/tic-tac-toe
+
+  race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go test -race ./...
+        env:
+          # Race-enabled test binaries also run as plugins; without this they
+          # sleep 1s at exit and miss plugin deadlines.
+          GORACE: atexit_sleep_ms=0
+
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: fuzz each target for 10s
+        run: |
+          set -e
+          go test -run '^$' -fuzz '^FuzzMergeIssues$' -fuzztime 10s .
+          go test -run '^$' -fuzz '^FuzzSetManifestIssues$' -fuzztime 10s .
+          go test -run '^$' -fuzz '^FuzzMarker$' -fuzztime 10s ./tracker/
+          go test -run '^$' -fuzz '^FuzzADF$' -fuzztime 10s ./providers/jira/
+      - name: keep crashers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashers
+          path: "**/testdata/fuzz/**"
+
+  e2e:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: e2e (retried once)
+        run: |
+          go test -tags e2e ./e2e/ -count=1 -v > e2e-1.log 2>&1 && exit 0
+          echo "::warning::e2e failed once; retrying"
+          cat e2e-1.log
+          go test -tags e2e ./e2e/ -count=1 -v > e2e-2.log 2>&1 || { cat e2e-2.log; exit 1; }
+      - name: keep logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs-${{ matrix.os }}
+          path: e2e-*.log
+          if-no-files-found: ignore

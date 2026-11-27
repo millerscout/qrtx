@@ -39,6 +39,7 @@ func TestObservedGroundingEscapes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "docs", "read.md"), []byte("read\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	skipOnWindows(t, "symlinks")
 	if err := os.Symlink(outside, filepath.Join(root, "docs", "link.go")); err != nil {
 		t.Fatal(err)
 	}
@@ -74,6 +75,7 @@ func TestObservedGroundingEscapes(t *testing.T) {
 	}
 	t.Run("symlinked-root", func(t *testing.T) {
 		link := filepath.Join(base, "repo-link")
+		skipOnWindows(t, "symlinks")
 		if err := os.Symlink(root, link); err != nil {
 			t.Fatal(err)
 		}

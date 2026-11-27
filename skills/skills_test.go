@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -47,6 +48,7 @@ func TestInstallRefusesSymlinkedSkillDir(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(target, "SKILL.md"), []byte("host overlay\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	skipOnWindows(t, "symlinks")
 	if err := os.Symlink(target, filepath.Join(dir, "sdd-propose")); err != nil {
 		t.Fatal(err)
 	}
@@ -180,5 +182,13 @@ func TestHasSyncHooks(t *testing.T) {
 	}
 	if got, err := HasSyncHooks(filepath.Join(dir, "missing.json")); err != nil || got {
 		t.Fatalf("missing file: %v %v", got, err)
+	}
+}
+
+// skipOnWindows skips a test that needs a Unix-only feature.
+func skipOnWindows(t testing.TB, feature string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skipf("windows: needs %s", feature)
 	}
 }
