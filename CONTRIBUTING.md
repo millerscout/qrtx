@@ -11,7 +11,7 @@ go test ./...
 CGO_ENABLED=0 go test ./...   # the pure-Go build must pass too
 ```
 
-Go 1.22 or newer. With cgo enabled, the tree-sitter grammars need a C compiler.
+Go 1.24 or newer. With cgo enabled, the tree-sitter grammars need a C compiler.
 
 ## Guidelines
 
