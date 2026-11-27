@@ -57,6 +57,10 @@ jobs:
         with:
           go-version: stable
       - run: go test -race ./...
+        env:
+          # Race-enabled test binaries also run as plugins; without this they
+          # sleep 1s at exit and miss plugin deadlines.
+          GORACE: atexit_sleep_ms=0
 
   fuzz:
     runs-on: ubuntu-latest

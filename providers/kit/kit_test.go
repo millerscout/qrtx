@@ -172,8 +172,10 @@ func TestCredentials(t *testing.T) {
 			t.Fatalf("%s %s: %v", tc.host, tc.scope, err)
 		}
 	}
-	if c, err := kit.Credentials("127.0.0.1:9999", "any/thing"); err != nil || c.Token != "127.0.0.1:9999|any/thing" {
-		t.Fatalf("command: %+v %v", c, err)
+	if runtime.GOOS != "windows" { // the token_command above is sh syntax
+		if c, err := kit.Credentials("127.0.0.1:9999", "any/thing"); err != nil || c.Token != "127.0.0.1:9999|any/thing" {
+			t.Fatalf("command: %+v %v", c, err)
+		}
 	}
 	writeCreds(t, "hosts:\n  api.github.com: {token: ghp_x, scopes: [o/r]}\n")
 	if _, err := kit.Credentials("api.github.com", "o/r"); err == nil || !strings.Contains(err.Error(), "literal tokens are not allowed") {
@@ -201,7 +203,7 @@ func TestBindHost(t *testing.T) {
 	if err != nil || strings.Join(binds["api.github.com"].Scopes, ",") != "o/r,o/other" {
 		t.Fatalf("scopes: %+v %v", binds, err)
 	}
-	if info, _ := os.Stat(path); info.Mode().Perm() != 0o600 {
+	if info, _ := os.Stat(path); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 { // Windows has no Unix modes
 		t.Fatalf("mode %v", info.Mode().Perm())
 	}
 	if strings.Contains(string(before), "token:") {

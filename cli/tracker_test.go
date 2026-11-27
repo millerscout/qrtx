@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -34,6 +35,9 @@ func buildBin(t *testing.T, name string) string {
 		binDir = dir
 	}
 	p := filepath.Join(binDir, name)
+	if runtime.GOOS == "windows" {
+		p += ".exe" // Windows runs only files with an executable extension
+	}
 	if out, err := exec.Command("go", "build", "-o", p, "../cmd/"+name).CombinedOutput(); err != nil {
 		t.Fatalf("build %s: %v\n%s", name, err, out)
 	}
