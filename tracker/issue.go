@@ -248,6 +248,9 @@ type CreateIssueInput struct {
 	Labels      []string `json:"labels,omitempty"`
 	Refs        []SDDRef `json:"sdd,omitempty"`
 	ClientRef   string   `json:"client_ref"`
+	// Fresh says ClientRef was never sent before, so a provider may skip
+	// its idempotency lookup. Retries of an earlier create leave it false.
+	Fresh bool `json:"fresh,omitempty"`
 }
 
 // UpdateIssueInput is a partial update; nil fields are left alone.

@@ -12,7 +12,7 @@ import (
 	"github.com/millerscout/sdd"
 )
 
-const trackerUsage = "Usage: %s tracker list [--status <category>] [--change <slug>] [--all] [--json] | get <ref> [--json] | add <title> [--description <text>] | close <ref> [--canceled] | start <ref> <slug> | from-deferred --change <slug> | outbox [--json] [--drop <seq>] | check [--backend <name>] [--allow-writes] [--json] | init | setup <github|jira> [flags] | merge-driver <base> <ours> <theirs>\n"
+const trackerUsage = "Usage: %s tracker list [--status <category>] [--change <slug>] [--all] [--json] | get <ref> [--json] | add <title> [--description <text>] [--client-ref <ref>] | close <ref> [--canceled] | start <ref> <slug> | from-deferred --change <slug> | outbox [--json] [--drop <seq>] | check [--backend <name>] [--allow-writes] [--json] | init | setup <github|jira> [flags] | merge-driver <base> <ours> <theirs>\n"
 
 func runTracker(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
@@ -60,6 +60,7 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
+		list = sdd.WithRecentCreates(root, t.Backend, f, list, t.GetIssue)
 		if asJSON {
 			return writeJSON(stdout, list)
 		}
@@ -93,19 +94,31 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "add":
-		title := firstPositional(args[1:], "--description")
+		title := firstPositional(args[1:], "--description", "--client-ref")
 		if title == "" {
 			return fmt.Errorf("tracker add: pass a title")
+		}
+		// A new client_ref has never been sent, so the provider can skip its
+		// duplicate lookup; --client-ref retries an earlier add safely.
+		cref := flagValue(args, "--client-ref")
+		fresh := cref == ""
+		if fresh {
+			cref = sdd.NewClientRef(sdd.RepoName(root), "", title, sdd.NewNonce())
 		}
 		is, err := t.CreateIssue(sdd.CreateIssueInput{
 			Title:       title,
 			Description: flagValue(args, "--description"),
 			Refs:        []sdd.SDDRef{{Repo: sdd.RepoName(root), Project: t.Project()}},
-			ClientRef:   sdd.NewClientRef(sdd.RepoName(root), "", title, sdd.NewNonce()),
+			ClientRef:   cref,
+			Fresh:       fresh,
 		})
 		if err != nil {
+			if sdd.IsUnavailable(err) {
+				fmt.Fprintf(stderr, "the issue may or may not have been created; to retry without a duplicate run:\n  %s tracker add %s --description %s --client-ref %s\n", sdd.CLIName, shQuote(title), shQuote(flagValue(args, "--description")), shQuote(cref))
+			}
 			return err
 		}
+		sdd.RecordCreated(root, t.Backend, is)
 		fmt.Fprintf(stdout, "added %s\n", t.Ref("", is.ID))
 		return nil
 	case "close":
@@ -373,3 +386,6 @@ func containsArg(list []string, s string) bool {
 	}
 	return false
 }
+
+// shQuote quotes s for a POSIX shell.
+func shQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }

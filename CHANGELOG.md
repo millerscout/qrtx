@@ -12,6 +12,11 @@
   - **Claude Code hooks:** `sdd skills install --hooks` sets them up (`SessionStart`, `UserPromptSubmit`, async `PostToolUse`, `SessionEnd`).
   - **Skills:** the bundled skills claim and release work.
   - **Docs:** see `docs/sync.md`.
+- **Faster `sdd tracker add`:** a new add skips the plugin's duplicate lookup (`fresh` in `create_issue`), which saved about 3s per add on GitHub.
+- **`sdd tracker add --client-ref`:** after a timed-out add, sdd prints the exact command that retries it without making a duplicate.
+- **Fresh issues in `sdd tracker list`:** an issue created in the last minute is listed even while the provider's list lags behind.
+- **Clearer plugin timeouts:** plugins get a deadline a little before sdd stops them, so a stalled request is reported by the plugin with what it was doing.
+- **`sdd skills install --hooks`:** adds `.claude/settings.local.json` to `.gitignore` unless git already ignores it, and says the hooks are local to the clone (`--shared` commits them).
 - **Outbox draining:** only one process drains at a time, and the outbox lock is taken per entry, never across a tracker call.
 - **Windows locks:** lock files record their owner, so a process never removes a lock it no longer owns.
 

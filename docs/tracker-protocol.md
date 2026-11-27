@@ -63,7 +63,7 @@ sdd always calls `capabilities` first, and never calls an operation the plugin d
 | `capabilities` | `{}` | `{"protocols":["sdd.adapter/v1"],"interfaces":["tracker@v1"],"ops":[…],"link_types":[…]}` |
 | `list_issues` | `{"filter":{"categories":[…],"labels":[…],"assignee":"","text":"","change":"","limit":0,"cursor":""}}` | `{"issues":[…],"cursor":"…"}` |
 | `get_issue` | `{"id":"…"}` | an issue |
-| `create_issue` | `{"title","description","category","labels","sdd":[…],"client_ref"}` | the issue |
+| `create_issue` | `{"title","description","category","labels","sdd":[…],"client_ref","fresh"}` | the issue |
 | `update_issue` | `{"id","title","description","labels","add_sdd":[…]}`; absent fields are left alone | the issue |
 | `transition_issue` | `{"id","category","native"}`; `native` is set when `status_map` names one | the issue |
 | `comment` | `{"id","markdown","client_ref"}` | `{}` |
@@ -76,6 +76,7 @@ sdd always calls `capabilities` first, and never calls an operation the plugin d
 
 sdd queues every write in a local outbox and may resend it after a crash or timeout. `create_issue` carries a `client_ref`.
 - **Before creating,** a plugin MUST look for an existing issue with that `client_ref` and return it if one exists.
+- **`fresh`:** when `true`, sdd has never sent this `client_ref` before, so the plugin MAY skip that lookup. sdd never sets it on a resend. A plugin that ignores it stays correct, only slower.
 - **Where to keep it:** store the `client_ref` in the sdd marker (below) or in a backend field.
 - **Checking it:** `sdd tracker check --allow-writes` creates twice with the same `client_ref` and fails the plugin if two issues come back.
 

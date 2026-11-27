@@ -174,3 +174,15 @@ func TestCreateFindsLaggedIssue(t *testing.T) {
 		t.Fatalf("lagged retry: %+v %v count=%d slept=%d", again, err, fake.Count(), slept)
 	}
 }
+
+// A fresh client_ref was never sent, so create skips the lookup and its 3s
+// lag wait.
+func TestCreateFreshSkipsLookup(t *testing.T) {
+	fake, p, _ := setup(t)
+	slept := 0
+	p.Sleep = func(time.Duration) { slept++ }
+	is, err := p.CreateIssue(tracker.CreateIssueInput{Title: "a", ClientRef: "fresh1", Fresh: true})
+	if err != nil || is.ClientRef != "fresh1" || fake.Count() != 1 || slept != 0 {
+		t.Fatalf("fresh create: %+v %v count=%d slept=%d", is, err, fake.Count(), slept)
+	}
+}

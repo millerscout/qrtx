@@ -355,3 +355,26 @@ esac
 		t.Fatalf("outbox: %q %v", out, err)
 	}
 }
+
+func TestEnsureGitignored(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := t.TempDir()
+	if err := exec.Command("git", "-C", root, "init", "-q").Run(); err != nil {
+		t.Skip("git unavailable")
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("bin"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	added, err := ensureGitignored(root, ".claude/settings.local.json")
+	if err != nil || !added {
+		t.Fatalf("first: %v %v", added, err)
+	}
+	if added, err := ensureGitignored(root, ".claude/settings.local.json"); err != nil || added {
+		t.Fatalf("second: %v %v", added, err)
+	}
+	b, _ := os.ReadFile(filepath.Join(root, ".gitignore"))
+	if string(b) != "bin\n.claude/settings.local.json\n" {
+		t.Fatalf(".gitignore = %q", b)
+	}
+}

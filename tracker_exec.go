@@ -82,7 +82,7 @@ func (e *execTracker) run(op string, args any) (json.RawMessage, error) {
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = e.stderr
-	cmd.Env = append(os.Environ(), "SDD_TRACKER_DEADLINE="+time.Now().Add(e.timeout).UTC().Format(time.RFC3339Nano))
+	cmd.Env = append(os.Environ(), "SDD_TRACKER_DEADLINE="+time.Now().Add(pluginDeadline(e.timeout)).UTC().Format(time.RFC3339Nano))
 	cmd.WaitDelay = time.Second
 	runErr := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
@@ -253,4 +253,15 @@ func adapterCode(err error) string {
 		return ae.Code
 	}
 	return ""
+}
+
+// pluginDeadline is the deadline handed to the plugin: a margin before sdd
+// kills it, so a stalled request is reported by the plugin with what it was
+// doing instead of an opaque "timed out" from sdd.
+func pluginDeadline(timeout time.Duration) time.Duration {
+	margin := timeout / 10
+	if margin > 3*time.Second {
+		margin = 3 * time.Second
+	}
+	return timeout - margin
 }

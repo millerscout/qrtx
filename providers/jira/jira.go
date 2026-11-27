@@ -283,7 +283,7 @@ func (p *Provider) setRefs(key string, refs []tracker.SDDRef) error {
 // CreateIssue is idempotent per client_ref: the sdd-cref label is written
 // with the issue and searched before creating. The POST is never retried.
 func (p *Provider) CreateIssue(in tracker.CreateIssueInput) (tracker.Issue, error) {
-	if in.ClientRef != "" {
+	if in.ClientRef != "" && !in.Fresh {
 		key, err := p.findByClientRef(in.ClientRef)
 		if err != nil {
 			return tracker.Issue{}, err

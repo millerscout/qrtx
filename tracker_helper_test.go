@@ -83,6 +83,13 @@ func fakeTrackerMain() int {
 		return 0
 	case "sleep":
 		time.Sleep(10 * time.Second)
+	case "stall":
+		// A plugin whose request hangs until its own deadline, then reports.
+		if d, err := time.Parse(time.RFC3339Nano, os.Getenv("SDD_TRACKER_DEADLINE")); err == nil {
+			time.Sleep(time.Until(d))
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"error": map[string]any{"code": ErrCodeUnavailable, "message": "GET /issues: context deadline exceeded"}})
+		return 0
 	}
 	if req.Op == OpCapabilities {
 		caps := TrackerCaps{Protocols: []string{AdapterProtocol}, Ops: []string{OpCapabilities, OpListIssues, OpGetIssue, OpCreateIssue, OpUpdateIssue, OpTransitionIssue, OpComment}}

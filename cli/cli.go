@@ -435,6 +435,14 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 			action = "updated"
 		}
 		_, _ = fmt.Fprintf(stdout, "%s %s (sdd sync hooks)\n", action, path)
+		if !shared {
+			if added, err := ensureGitignored(root, ".claude/settings.local.json"); err != nil {
+				return err
+			} else if added {
+				_, _ = fmt.Fprintf(stdout, "updated %s (ignores .claude/settings.local.json)\n", filepath.Join(root, ".gitignore"))
+			}
+			_, _ = fmt.Fprintf(stdout, "note: these hooks apply to this clone only; run with --shared to commit them in .claude/settings.json\n")
+		}
 		return nil
 	default:
 		usage()
@@ -501,4 +509,26 @@ func hookCommand() string {
 		return fmt.Sprintf("%q", exe)
 	}
 	return sdd.CLIName
+}
+
+// ensureGitignored appends entry to root/.gitignore unless git already
+// ignores it. It reports whether it changed the file.
+func ensureGitignored(root, entry string) (bool, error) {
+	check := exec.Command("git", "check-ignore", "-q", entry)
+	check.Dir = root
+	if err := check.Run(); err == nil {
+		return false, nil
+	} else if ee, ok := err.(*exec.ExitError); !ok || ee.ExitCode() != 1 {
+		return false, nil // not a git repository, or no git
+	}
+	path := filepath.Join(root, ".gitignore")
+	b, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+	if len(b) > 0 && b[len(b)-1] != '\n' {
+		b = append(b, '\n')
+	}
+	b = append(b, entry+"\n"...)
+	return true, os.WriteFile(path, b, 0o644)
 }

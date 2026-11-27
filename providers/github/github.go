@@ -312,7 +312,7 @@ func (p *Provider) scanForClientRef(clientRef string) (*ghIssue, error) {
 // CreateIssue is idempotent per client_ref (see findByClientRef). The POST
 // itself is never retried.
 func (p *Provider) CreateIssue(in tracker.CreateIssueInput) (tracker.Issue, error) {
-	if in.ClientRef != "" {
+	if in.ClientRef != "" && !in.Fresh {
 		g, err := p.findByClientRef(in.ClientRef)
 		if err != nil {
 			return tracker.Issue{}, err

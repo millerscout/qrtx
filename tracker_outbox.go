@@ -339,6 +339,7 @@ func sendEntry(t *Tracker, e OutboxEntry) error {
 		if err := json.Unmarshal(e.Args, &in); err != nil {
 			return &AdapterError{Code: ErrCodeInvalid, Message: err.Error()}
 		}
+		in.Fresh = false // a replay may follow a create that went through
 		_, err := impl.CreateIssue(in)
 		return err
 	case OpUpdateIssue:

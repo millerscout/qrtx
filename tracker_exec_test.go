@@ -54,6 +54,15 @@ func TestTrackerExec(t *testing.T) {
 			}
 		})
 	}
+	t.Run("plugin reports its own deadline", func(t *testing.T) {
+		setFakeMode(t, dir, "stall")
+		defer setFakeMode(t, dir, "")
+		tr, _ := OpenTracker(root)
+		_, err := tr.GetIssue("F-1")
+		if err == nil || !strings.Contains(err.Error(), "GET /issues") || strings.Contains(err.Error(), "timed out after") {
+			t.Fatalf("want the plugin's error, not sdd's kill: %v", err)
+		}
+	})
 	t.Run("invalid backend name", func(t *testing.T) {
 		for _, bad := range []string{"../evil", "a/b"} {
 			r := t.TempDir()
