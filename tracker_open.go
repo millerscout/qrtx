@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 // Tracker is the issue tracker a repository uses: the backend .sdd.yaml
@@ -132,7 +132,7 @@ func CheckTracker(repoRoot, backend string, allowWrites bool) ([]CheckResult, er
 	}
 	var impl IssueTracker
 	if backend == fileBackendName && (hostTracker == nil || backend != t.Backend) {
-		tmp, err := os.MkdirTemp("", "sdd-tracker-check-")
+		tmp, err := os.MkdirTemp("", "qrtx-tracker-check-")
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +156,7 @@ func CheckTracker(repoRoot, backend string, allowWrites bool) ([]CheckResult, er
 	delay := time.Duration(0)
 	if _, ok := impl.(*execTracker); ok {
 		delay = checkRetryDelay
-		if d, err := time.ParseDuration(os.Getenv("SDD_CHECK_RETRY_DELAY")); err == nil {
+		if d, err := time.ParseDuration(os.Getenv("QRTX_CHECK_RETRY_DELAY")); err == nil {
 			delay = d
 		}
 	}

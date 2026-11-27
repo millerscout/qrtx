@@ -1,7 +1,7 @@
-package sdd
+package qrtx
 
 // CodeIndex looks up code for a propose request. Hits carry Path and Line;
-// sdd sets Source. Without one, propose context has no code hits.
+// qrtx sets Source. Without one, propose context has no code hits.
 type CodeIndex interface {
 	// Related returns graph neighbours of the query text.
 	Related(project, query string, limit int) []CodeHit

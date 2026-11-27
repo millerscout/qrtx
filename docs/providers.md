@@ -1,27 +1,27 @@
 # Tracker providers
 
-sdd keeps the project backlog in an issue tracker (see [tracker-protocol.md](tracker-protocol.md)). With no configuration it uses the built-in `file` backend, `sdd/issues.jsonl`. To use a hosted tracker, install its plugin and run `sdd tracker setup`.
+qrtx keeps the project backlog in an issue tracker (see [tracker-protocol.md](tracker-protocol.md)). With no configuration it uses the built-in `file` backend, `sdd/issues.jsonl`. To use a hosted tracker, install its plugin and run `qrtx tracker setup`.
 
 | Provider | Install | Status |
 |---|---|---|
-| `file` | built into `sdd` | first-party |
-| `github` | `go install github.com/millerscout/sdd/cmd/sdd-tracker-github@latest` | first-party |
-| `jira` | `go install github.com/millerscout/sdd/cmd/sdd-tracker-jira@latest` | first-party (Jira Cloud) |
+| `file` | built into `qrtx` | first-party |
+| `github` | `go install github.com/millerscout/qrtx/cmd/qrtx-tracker-github@latest` | first-party |
+| `jira` | `go install github.com/millerscout/qrtx/cmd/qrtx-tracker-jira@latest` | first-party (Jira Cloud) |
 | GitLab, Linear, Azure DevOps | planned (`tracker-providers-more`) | — |
-| anything else | any `sdd-tracker-<name>` on `PATH` that passes `sdd tracker check --allow-writes` | community |
+| anything else | any `qrtx-tracker-<name>` on `PATH` that passes `qrtx tracker check --allow-writes` | community |
 
 ## One-step setup
 
 ```bash
-sdd init                                   # skills, constitution, merge driver
-sdd init --tracker github --repo acme/shop --token-command "gh auth token" --yes
+qrtx init                                   # skills, constitution, merge driver
+qrtx init --tracker github --repo acme/shop --token-command "gh auth token" --yes
 ```
 
-`sdd init` is safe to re-run: steps that are already done print `unchanged`, and a skill you edited locally is reported as `skipped`. `sdd tracker setup <backend>` does only the tracker part:
+`qrtx init` is safe to re-run: steps that are already done print `unchanged`, and a skill you edited locally is reported as `skipped`. `qrtx tracker setup <backend>` does only the tracker part:
 
 ```bash
-sdd tracker setup github --repo acme/shop --token-command "gh auth token"
-sdd tracker setup jira --url https://acme.atlassian.net --project SHOP \
+qrtx tracker setup github --repo acme/shop --token-command "gh auth token"
+qrtx tracker setup jira --url https://acme.atlassian.net --project SHOP \
   --email-env JIRA_EMAIL --token-env JIRA_API_TOKEN
 ```
 
@@ -29,7 +29,7 @@ Setup runs these steps in order:
 1. It writes the `tracker:` block into `.sdd.yaml`, keeping your other keys and comments.
 2. It shows the credentials binding it wants to add, and asks before writing it (`--yes` skips the question).
 3. It checks that the plugin is on `PATH`, or prints the `go install` line.
-4. It runs a read-only `sdd tracker check`.
+4. It runs a read-only `qrtx tracker check`.
 
 Without a terminal (agents, CI), a missing value is an error that names the flag; setup never guesses.
 
@@ -37,7 +37,7 @@ Without a terminal (agents, CI), a missing value is an error that names the flag
 
 Tokens never go in `.sdd.yaml`. That file is committed, and a repository you clone could point a plugin at its own server, or at another repository on the same host. Instead, each user keeps a credentials file:
 
-- `$SDD_CREDENTIALS`, else
+- `$QRTX_CREDENTIALS`, else
 - `$XDG_CONFIG_HOME/sdd/credentials.yaml` or `~/.config/sdd/credentials.yaml` (`%AppData%\sdd\credentials.yaml` on Windows).
 
 ```yaml
@@ -50,7 +50,7 @@ The rules:
 - **Hosts:** a host is the exact API host, with its port when the URL has one: `api.github.com`, not `github.com`. GitHub Enterprise Server uses `HOST` from `https://HOST/api/v3`. A host with no binding gets an `auth` error, and no request is sent.
 - **Scopes:** `scopes` lists the repos (GitHub) or project keys (Jira) the credential may be used for. `*` allows any. A repo or project outside the list gets an `auth` error naming it.
 - **Sources:** a binding names where the secret comes from, never the secret itself. `token_env` and `email_env` are environment variables. `token_command` is a command that prints a token. Literal `token`/`password` keys are rejected.
-- **Short-lived tokens:** `token_command` runs with `SDD_CRED_HOST` and `SDD_CRED_SCOPE` set. An OIDC exchange, a GitHub App installation-token minter or a zero-trust broker can use them to mint a short-lived token scoped to that one repository or project. Built-in sources for those are planned (`tracker-credentials-federated`). SSH certificates don't apply: GitHub's and Jira's REST APIs don't accept SSH auth.
+- **Short-lived tokens:** `token_command` runs with `QRTX_CRED_HOST` and `QRTX_CRED_SCOPE` set. An OIDC exchange, a GitHub App installation-token minter or a zero-trust broker can use them to mint a short-lived token scoped to that one repository or project. Built-in sources for those are planned (`tracker-credentials-federated`). SSH certificates don't apply: GitHub's and Jira's REST APIs don't accept SSH auth.
 - **Redirects:** a redirect to another scheme, host or port is refused, so credentials never follow one.
 - **Plain http:** allowed only for a loopback host (tests).
 
@@ -66,7 +66,7 @@ tracker:
     api_version: 2022-11-28      # X-GitHub-Api-Version
 ```
 
-| GitHub | sdd category |
+| GitHub | qrtx category |
 |---|---|
 | open | unstarted |
 | open with `started_label` | started |
@@ -76,9 +76,9 @@ tracker:
 How each operation works:
 - **Started:** moving an issue to `started` adds the label, creating it if the repository doesn't have it.
 - **Hidden marker:** `client_ref` and the `sdd` links live in a hidden marker on the last line of the issue body (`<!-- sdd:v1 {…} -->`), which `description` never shows.
-- **Idempotency:** a create first looks at your 100 newest issues for the same `client_ref`, and looks again 3 seconds later before creating. GitHub's issue list shows a new issue only 3–4 seconds after it is created, so a create retried within about 3 seconds of the first can still duplicate. sdd's own retries come from its outbox on a later command, well outside that window. The issue search API isn't used because it lags even more. `sdd tracker from-deferred` also skips bullets whose issue already exists, so re-running it weeks later creates no duplicates.
+- **Idempotency:** a create first looks at your 100 newest issues for the same `client_ref`, and looks again 3 seconds later before creating. GitHub's issue list shows a new issue only 3–4 seconds after it is created, so a create retried within about 3 seconds of the first can still duplicate. qrtx's own retries come from its outbox on a later command, well outside that window. The issue search API isn't used because it lags even more. `qrtx tracker from-deferred` also skips bullets whose issue already exists, so re-running it weeks later creates no duplicates.
 - **Listing:** pull requests are skipped, and listing pages through any number of issues.
-- **Retries:** comments and creates are never retried by the plugin. sdd's outbox retries them, and the `client_ref` check keeps a retried create from duplicating.
+- **Retries:** comments and creates are never retried by the plugin. qrtx's outbox retries them, and the `client_ref` check keeps a retried create from duplicating.
 
 ## Jira Cloud
 
@@ -94,7 +94,7 @@ tracker:
     started: In Progress
 ```
 
-| Jira status category | sdd category |
+| Jira status category | qrtx category |
 |---|---|
 | new (To Do) | unstarted |
 | indeterminate (In Progress) | started |
@@ -109,6 +109,6 @@ How each operation works:
 
 ## Writing a provider
 
-See "Writing a provider with the kit" in [tracker-protocol.md](tracker-protocol.md). Run `sdd tracker check --backend <name> --allow-writes` against a scratch project before publishing. Against a plugin it waits 10 seconds before retrying the create, as a real retry would (`SDD_CHECK_RETRY_DELAY` changes the wait).
+See "Writing a provider with the kit" in [tracker-protocol.md](tracker-protocol.md). Run `qrtx tracker check --backend <name> --allow-writes` against a scratch project before publishing. Against a plugin it waits 10 seconds before retrying the create, as a real retry would (`QRTX_CHECK_RETRY_DELAY` changes the wait).
 
 Already run against real services: GitHub (2026-11-26). Jira Cloud is tested only against the API fake so far.

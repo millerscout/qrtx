@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"fmt"
@@ -7,6 +7,6 @@ import (
 
 // verifyASTStub is the P0 wiring check; P1 replaces with real drift verification.
 func verifyASTStub(w io.Writer) error {
-	_, err := fmt.Fprintln(w, "sdd verify-ast: stub OK (full verify in P1)")
+	_, err := fmt.Fprintln(w, "qrtx verify-ast: stub OK (full verify in P1)")
 	return err
 }

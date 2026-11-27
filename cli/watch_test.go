@@ -17,7 +17,7 @@ func countEvents(t *testing.T, gitSdd, kind string) int {
 func TestWatch(t *testing.T) {
 	repo := newGitRepo(t, nil)
 	fastSync(t, repo, "1h", "")
-	if out, err := sddAt(t, repo, nil, "change", "new", "demo"); err != nil {
+	if out, err := qrtxAt(t, repo, nil, "change", "new", "demo"); err != nil {
 		t.Fatal(out)
 	}
 	mustGit(t, repo, "add", "-A")
@@ -26,8 +26,8 @@ func TestWatch(t *testing.T) {
 	mustGit(t, repo, "worktree", "add", "-q", "-b", "feature", wt)
 	gitSdd := filepath.Join(repo, ".git", "sdd")
 	stopDaemonCleanup(t, repo)
-	sddAt(t, repo, nil, "sync", "heartbeat", "--session", "A")
-	sddAt(t, wt, nil, "sync", "heartbeat", "--session", "B")
+	qrtxAt(t, repo, nil, "sync", "heartbeat", "--session", "A")
+	qrtxAt(t, wt, nil, "sync", "heartbeat", "--session", "B")
 	waitFor(t, "daemon", 3*time.Second, func() bool { return syncStatus(t, repo).Daemon != nil })
 	// Let the first snapshot happen: it must be silent.
 	time.Sleep(600 * time.Millisecond)
@@ -41,16 +41,16 @@ func TestWatch(t *testing.T) {
 	}
 	flip("- [ ] 1.1 First implementation task", "- [x] 1.1 First implementation task")
 	waitFor(t, "task_progress", 5*time.Second, func() bool { return countEvents(t, gitSdd, "task_progress") == 1 })
-	out, _ := sddAt(t, repo, nil, "sync", "inbox", "--session", "A")
+	out, _ := qrtxAt(t, repo, nil, "sync", "inbox", "--session", "A")
 	if !strings.Contains(out, "demo/1.1 done in wt (feature)") {
 		t.Fatalf("A's inbox: %q", out)
 	}
 	// A change made while no daemon runs is reported once on restart.
-	if _, err := sddAt(t, repo, nil, "sync", "stop"); err != nil {
+	if _, err := qrtxAt(t, repo, nil, "sync", "stop"); err != nil {
 		t.Fatal(err)
 	}
 	flip("- [x] 1.1 First implementation task", "- [ ] 1.1 First implementation task")
-	sddAt(t, repo, nil, "sync", "heartbeat", "--session", "C")
+	qrtxAt(t, repo, nil, "sync", "heartbeat", "--session", "C")
 	waitFor(t, "restart event", 5*time.Second, func() bool { return countEvents(t, gitSdd, "task_progress") == 2 })
 	time.Sleep(500 * time.Millisecond)
 	if n := countEvents(t, gitSdd, "task_progress"); n != 2 {

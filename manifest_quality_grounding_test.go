@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"os"
@@ -144,7 +144,7 @@ func setTasks(t *testing.T, root, slug, tasks string) {
 }
 
 // TestTestdataSurvivesModuleZip fails on anything under testdata/ that Go's module zip
-// (golang.org/x/mod/zip) leaves out, so a consumer running `go test github.com/millerscout/sdd`
+// (golang.org/x/mod/zip) leaves out, so a consumer running `go test github.com/millerscout/qrtx`
 // sees the same fixtures as this repository: nested modules, vendor/ and VCS folders, symlinks.
 func TestTestdataSurvivesModuleZip(t *testing.T) {
 	vcs := map[string]bool{".git": true, ".hg": true, ".bzr": true, ".svn": true}

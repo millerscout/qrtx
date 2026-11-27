@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"bufio"
@@ -385,7 +385,7 @@ type SessionInfo struct {
 }
 
 // ResolveSession picks the session id: explicit flag, then the hook's
-// session_id, then $SDD_SESSION, then <worktree>:<parent pid>.
+// session_id, then $QRTX_SESSION, then <worktree>:<parent pid>.
 func ResolveSession(repoRoot, flag, hookSession string) SessionInfo {
 	info := SessionInfo{Worktree: gitToplevel(repoRoot), Branch: gitBranch(repoRoot)}
 	switch {
@@ -393,8 +393,8 @@ func ResolveSession(repoRoot, flag, hookSession string) SessionInfo {
 		info.ID = strings.TrimSpace(flag)
 	case strings.TrimSpace(hookSession) != "":
 		info.ID = strings.TrimSpace(hookSession)
-	case strings.TrimSpace(os.Getenv("SDD_SESSION")) != "":
-		info.ID = strings.TrimSpace(os.Getenv("SDD_SESSION"))
+	case strings.TrimSpace(os.Getenv("QRTX_SESSION")) != "":
+		info.ID = strings.TrimSpace(os.Getenv("QRTX_SESSION"))
 	default:
 		info.ID = fmt.Sprintf("%s:%d", info.Worktree, os.Getppid())
 	}
@@ -483,7 +483,7 @@ func Heartbeat(repoRoot string, who SessionInfo, now time.Time, allowDaemon bool
 }
 
 // BeginSession registers who (a SessionStart hook) and appends
-// `export SDD_SESSION=<id>` to envFile when it is set.
+// `export QRTX_SESSION=<id>` to envFile when it is set.
 func BeginSession(repoRoot string, who SessionInfo, now time.Time, envFile string, allowDaemon bool) error {
 	dir, _ := trackerStateDir(repoRoot)
 	_ = os.Remove(markerPath(dir, who.ID))
@@ -498,7 +498,7 @@ func BeginSession(repoRoot string, who SessionInfo, now time.Time, envFile strin
 		return err
 	}
 	defer f.Close()
-	_, err = fmt.Fprintf(f, "export SDD_SESSION=%s\n", shellQuote(who.ID))
+	_, err = fmt.Fprintf(f, "export QRTX_SESSION=%s\n", shellQuote(who.ID))
 	return err
 }
 

@@ -14,7 +14,7 @@ func TestTrackerPackageStdlibOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(string(out)); got != "github.com/millerscout/sdd/tracker" {
+	if got := strings.TrimSpace(string(out)); got != "github.com/millerscout/qrtx/tracker" {
 		t.Fatalf("non-standard deps:\n%s", got)
 	}
 }

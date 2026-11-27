@@ -12,37 +12,37 @@ import (
 	"testing"
 	"time"
 
-	"github.com/millerscout/sdd"
+	"github.com/millerscout/qrtx"
 )
 
 // daemonEnv is the environment for built-binary runs: daemons allowed.
 func daemonEnv(root string, extra ...string) []string {
 	var env []string
 	for _, kv := range os.Environ() {
-		if strings.HasPrefix(kv, "SDD_NO_DAEMON=") || strings.HasPrefix(kv, "CI=") || strings.HasPrefix(kv, "SDD_SESSION=") || strings.HasPrefix(kv, sdd.EnvRepo+"=") {
+		if strings.HasPrefix(kv, "QRTX_NO_DAEMON=") || strings.HasPrefix(kv, "CI=") || strings.HasPrefix(kv, "QRTX_SESSION=") || strings.HasPrefix(kv, qrtx.EnvRepo+"=") {
 			continue
 		}
 		env = append(env, kv)
 	}
-	return append(append(env, sdd.EnvRepo+"="+root), extra...)
+	return append(append(env, qrtx.EnvRepo+"="+root), extra...)
 }
 
-func sddAt(t *testing.T, root string, extra []string, args ...string) (string, error) {
+func qrtxAt(t *testing.T, root string, extra []string, args ...string) (string, error) {
 	t.Helper()
-	cmd := exec.Command(sddBinary(t), args...)
+	cmd := exec.Command(qrtxBinary(t), args...)
 	cmd.Dir = root
 	cmd.Env = daemonEnv(root, extra...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
 
-func syncStatus(t *testing.T, root string) sdd.SyncStatus {
+func syncStatus(t *testing.T, root string) qrtx.SyncStatus {
 	t.Helper()
-	out, err := sddAt(t, root, nil, "sync", "status", "--json")
+	out, err := qrtxAt(t, root, nil, "sync", "status", "--json")
 	if err != nil {
 		t.Fatalf("status: %v %s", err, out)
 	}
-	var st sdd.SyncStatus
+	var st qrtx.SyncStatus
 	if err := json.Unmarshal([]byte(out), &st); err != nil {
 		t.Fatalf("status json: %v\n%s", err, out)
 	}
@@ -53,7 +53,7 @@ func syncStatus(t *testing.T, root string) sdd.SyncStatus {
 func stopDaemonCleanup(t *testing.T, root string) {
 	t.Helper()
 	t.Cleanup(func() {
-		_, _ = sddAt(t, root, nil, "sync", "stop")
+		_, _ = qrtxAt(t, root, nil, "sync", "stop")
 		if st := syncStatus(t, root); st.Daemon != nil {
 			t.Errorf("daemon pid %d still running after stop", st.Daemon.PID)
 		}
@@ -86,12 +86,12 @@ func TestDaemonLifecycle(t *testing.T) {
 	root := t.TempDir()
 	fastSync(t, root, "2s", "")
 	stopDaemonCleanup(t, root)
-	out, err := sddAt(t, root, nil, "sync", "heartbeat", "--session", "A")
+	out, err := qrtxAt(t, root, nil, "sync", "heartbeat", "--session", "A")
 	if err != nil || !strings.Contains(out, "started sync daemon") {
 		t.Fatalf("heartbeat: %v %s", err, out)
 	}
 	waitFor(t, "daemon up", 3*time.Second, func() bool { return syncStatus(t, root).Daemon != nil })
-	if _, err := sddAt(t, root, nil, "sync", "claim", "demo/1.1", "--session", "A"); err != nil {
+	if _, err := qrtxAt(t, root, nil, "sync", "claim", "demo/1.1", "--session", "A"); err != nil {
 		t.Fatal(err)
 	}
 	// The only lease runs out: claims released, daemon exits by itself.
@@ -104,7 +104,7 @@ func TestDaemonLifecycle(t *testing.T) {
 		t.Fatalf("claims after expiry: %+v", st.Claims)
 	}
 	// A new session starts a new daemon; stop ends it.
-	if out, _ := sddAt(t, root, nil, "sync", "heartbeat", "--session", "B"); !strings.Contains(out, "started sync daemon") {
+	if out, _ := qrtxAt(t, root, nil, "sync", "heartbeat", "--session", "B"); !strings.Contains(out, "started sync daemon") {
 		t.Fatalf("restart: %s", out)
 	}
 	waitFor(t, "daemon up again", 3*time.Second, func() bool { return syncStatus(t, root).Daemon != nil })
@@ -113,13 +113,13 @@ func TestDaemonLifecycle(t *testing.T) {
 		t.Fatalf("status %+v", st)
 	}
 	start := time.Now()
-	if out, err := sddAt(t, root, nil, "sync", "stop"); err != nil || !strings.Contains(out, "stopped") || time.Since(start) > 5*time.Second {
+	if out, err := qrtxAt(t, root, nil, "sync", "stop"); err != nil || !strings.Contains(out, "stopped") || time.Since(start) > 5*time.Second {
 		t.Fatalf("stop: %v %s", err, out)
 	}
 	if syncStatus(t, root).Daemon != nil {
 		t.Fatal("still running after stop")
 	}
-	if out, _ := sddAt(t, root, nil, "sync", "stop"); !strings.Contains(out, "not running") {
+	if out, _ := qrtxAt(t, root, nil, "sync", "stop"); !strings.Contains(out, "not running") {
 		t.Fatalf("second stop: %s", out)
 	}
 	if _, err := os.Stat(filepath.Join(stateDirOf(root), "stop")); err == nil {
@@ -131,10 +131,10 @@ func TestDaemonStatus(t *testing.T) {
 	root := t.TempDir()
 	fastSync(t, root, "1h", "")
 	stopDaemonCleanup(t, root)
-	sddAt(t, root, nil, "sync", "heartbeat", "--session", "A")
-	sddAt(t, root, nil, "sync", "claim", "github:7", "--session", "A")
+	qrtxAt(t, root, nil, "sync", "heartbeat", "--session", "A")
+	qrtxAt(t, root, nil, "sync", "claim", "github:7", "--session", "A")
 	waitFor(t, "daemon", 3*time.Second, func() bool { return syncStatus(t, root).Daemon != nil })
-	out, _ := sddAt(t, root, nil, "sync", "status", "--json")
+	out, _ := qrtxAt(t, root, nil, "sync", "status", "--json")
 	for _, k := range []string{`"daemon"`, `"pid"`, `"sessions"`, `"live": true`, `"claims"`, `"github:7"`, `"outbox"`, `"last_poll"`} {
 		if !strings.Contains(out, k) {
 			t.Fatalf("status lacks %s:\n%s", k, out)
@@ -157,7 +157,7 @@ create_issue) echo '{"result":{"id":"F-1","title":"x","status":{"category":"back
 *) echo '{"error":{"code":"not_found","message":"x"}}'; exit 1 ;;
 esac
 `, dir)
-	if err := os.WriteFile(filepath.Join(bin, "sdd-tracker-down"), []byte(script), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(bin, "qrtx-tracker-down"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return bin
@@ -171,22 +171,22 @@ func TestDaemonDrains(t *testing.T) {
 	fastSync(t, root, "1h", "tracker:\n  backend: down\n")
 	stopDaemonCleanup(t, root)
 	_ = os.WriteFile(filepath.Join(dir, "mode"), []byte("down"), 0o644)
-	if out, err := sddAt(t, root, []string{pathEnv}, "change", "new", "demo"); err != nil {
+	if out, err := qrtxAt(t, root, []string{pathEnv}, "change", "new", "demo"); err != nil {
 		t.Fatal(out)
 	}
 	p := filepath.Join(root, "sdd", "changes", "demo", "change.sdd.md")
 	raw, _ := os.ReadFile(p)
 	text := strings.Replace(string(raw), "(Optional — other slugs that own split acceptance.)", "- Export to CSV later.", 1)
 	_ = os.WriteFile(p, []byte(text), 0o644)
-	if out, err := sddAt(t, root, []string{pathEnv}, "tracker", "from-deferred", "--change", "demo"); err != nil || !strings.Contains(out, "1 pending") {
+	if out, err := qrtxAt(t, root, []string{pathEnv}, "tracker", "from-deferred", "--change", "demo"); err != nil || !strings.Contains(out, "1 pending") {
 		t.Fatalf("queue: %v %s", err, out)
 	}
-	if _, err := sddAt(t, root, []string{pathEnv}, "sync", "heartbeat", "--session", "A"); err != nil {
+	if _, err := qrtxAt(t, root, []string{pathEnv}, "sync", "heartbeat", "--session", "A"); err != nil {
 		t.Fatal(err)
 	}
 	_ = os.WriteFile(filepath.Join(dir, "mode"), []byte("up"), 0o644)
 	waitFor(t, "daemon drain", 5*time.Second, func() bool {
-		out, _ := sddAt(t, root, []string{pathEnv, "SDD_NO_DAEMON=1"}, "sync", "status", "--json")
+		out, _ := qrtxAt(t, root, []string{pathEnv, "QRTX_NO_DAEMON=1"}, "sync", "status", "--json")
 		return strings.Contains(out, `"outbox": 0`)
 	})
 	logb, _ := os.ReadFile(filepath.Join(dir, "log"))
@@ -199,7 +199,7 @@ func TestDaemonTrimsOnStart(t *testing.T) {
 	root := t.TempDir()
 	fastSync(t, root, "1h", "")
 	stopDaemonCleanup(t, root)
-	if _, err := sddAt(t, root, []string{"SDD_NO_DAEMON=1"}, "sync", "heartbeat", "--session", "A"); err != nil {
+	if _, err := qrtxAt(t, root, []string{"QRTX_NO_DAEMON=1"}, "sync", "heartbeat", "--session", "A"); err != nil {
 		t.Fatal(err)
 	}
 	var b strings.Builder
@@ -208,7 +208,7 @@ func TestDaemonTrimsOnStart(t *testing.T) {
 		fmt.Fprintf(&b, `{"seq":%d,"at":%q,"session":"X","kind":"claim","key":"k"}`+"\n", i, now)
 	}
 	_ = os.WriteFile(filepath.Join(stateDirOf(root), "events.jsonl"), []byte(b.String()), 0o644)
-	sddAt(t, root, nil, "sync", "heartbeat", "--session", "B")
+	qrtxAt(t, root, nil, "sync", "heartbeat", "--session", "B")
 	waitFor(t, "trim", 5*time.Second, func() bool {
 		raw, _ := os.ReadFile(filepath.Join(stateDirOf(root), "events.jsonl"))
 		return strings.Count(string(raw), "\n") == 5000
@@ -223,12 +223,12 @@ func TestDaemonTwoRoots(t *testing.T) {
 		fastSync(t, r, "1h", "")
 	}
 	stopDaemonCleanup(t, a)
-	sddAt(t, a, nil, "sync", "heartbeat", "--session", "A")
-	sddAt(t, b, nil, "sync", "heartbeat", "--session", "B")
-	if out, err := sddAt(t, a, nil, "sync", "claim", "demo/1.1", "--session", "A"); err != nil {
+	qrtxAt(t, a, nil, "sync", "heartbeat", "--session", "A")
+	qrtxAt(t, b, nil, "sync", "heartbeat", "--session", "B")
+	if out, err := qrtxAt(t, a, nil, "sync", "claim", "demo/1.1", "--session", "A"); err != nil {
 		t.Fatal(out)
 	}
-	if out, err := sddAt(t, b, nil, "sync", "claim", "demo/1.1", "--session", "B"); err != nil {
+	if out, err := qrtxAt(t, b, nil, "sync", "claim", "demo/1.1", "--session", "B"); err != nil {
 		t.Fatalf("same key in another root conflicted: %s", out)
 	}
 	gitDir := filepath.Join(repo, ".git", "sdd")
@@ -247,7 +247,7 @@ func TestDaemonAutostart(t *testing.T) {
 	fastSync(t, root, "1h", "")
 	stopDaemonCleanup(t, root)
 	// CI: lease updated, no daemon.
-	if out, err := sddAt(t, root, []string{"CI=true"}, "sync", "heartbeat", "--session", "ci"); err != nil || strings.Contains(out, "started") {
+	if out, err := qrtxAt(t, root, []string{"CI=true"}, "sync", "heartbeat", "--session", "ci"); err != nil || strings.Contains(out, "started") {
 		t.Fatalf("CI: %v %s", err, out)
 	}
 	st := syncStatus(t, root)
@@ -258,7 +258,7 @@ func TestDaemonAutostart(t *testing.T) {
 	var wg sync.WaitGroup
 	for _, s := range []string{"A", "B"} {
 		wg.Add(1)
-		go func(s string) { defer wg.Done(); sddAt(t, root, nil, "sync", "heartbeat", "--session", s) }(s)
+		go func(s string) { defer wg.Done(); qrtxAt(t, root, nil, "sync", "heartbeat", "--session", s) }(s)
 	}
 	wg.Wait()
 	waitFor(t, "daemon", 3*time.Second, func() bool { return syncStatus(t, root).Daemon != nil })
@@ -273,7 +273,7 @@ func TestDaemonAutostart(t *testing.T) {
 		_ = p.Signal(syscall.SIGKILL)
 	}
 	waitFor(t, "daemon gone", 3*time.Second, func() bool { return syncStatus(t, root).Daemon == nil })
-	if out, _ := sddAt(t, root, nil, "sync", "heartbeat", "--session", "C"); !strings.Contains(out, "started sync daemon") {
+	if out, _ := qrtxAt(t, root, nil, "sync", "heartbeat", "--session", "C"); !strings.Contains(out, "started sync daemon") {
 		t.Fatalf("replacement: %s", out)
 	}
 	waitFor(t, "replacement up", 3*time.Second, func() bool { return syncStatus(t, root).Daemon != nil })
@@ -284,7 +284,7 @@ func TestDaemonExitRace(t *testing.T) {
 	fastSync(t, root, "300ms", "")
 	stopDaemonCleanup(t, root)
 	for i := 0; i < 20; i++ {
-		sddAt(t, root, nil, "sync", "heartbeat", "--session", fmt.Sprintf("s%d", i))
+		qrtxAt(t, root, nil, "sync", "heartbeat", "--session", fmt.Sprintf("s%d", i))
 		time.Sleep(time.Duration(i%5) * 80 * time.Millisecond)
 		// Invariant: a live session always has a daemon (give it a moment to start).
 		st := syncStatus(t, root)

@@ -1,4 +1,4 @@
-// Package sdd implements spec-driven development: changes are planned as
+// Package qrtx implements spec-driven development: changes are planned as
 // manifests under sdd/changes/<slug>/change.sdd.md, implemented against their
 // task lists, and archived once validated. Packages may carry a
 // contract.sdd.md that is checked against the code.
@@ -24,4 +24,4 @@
 // MergeIssues, SetTrackerConfig, the sdd.adapter/v1 types, and the tracker,
 // providers/kit and provider packages) and the propose-agent helpers
 // (ProposeBand, Regression*, WriteRoadmap, AcceptanceEcho and similar).
-package sdd
+package qrtx

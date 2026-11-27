@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/millerscout/sdd/providers/github"
-	"github.com/millerscout/sdd/providers/github/fakeapi"
-	"github.com/millerscout/sdd/providers/kit"
-	"github.com/millerscout/sdd/providers/kit/kittest"
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/providers/github"
+	"github.com/millerscout/qrtx/providers/github/fakeapi"
+	"github.com/millerscout/qrtx/providers/kit"
+	"github.com/millerscout/qrtx/providers/kit/kittest"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 func setup(t *testing.T) (*fakeapi.Server, *github.Provider, json.RawMessage) {
@@ -23,11 +23,11 @@ func setup(t *testing.T) (*fakeapi.Server, *github.Provider, json.RawMessage) {
 	t.Cleanup(fake.Close)
 	u, _ := url.Parse(fake.URL)
 	creds := filepath.Join(t.TempDir(), "credentials.yaml")
-	if err := os.WriteFile(creds, []byte(fmt.Sprintf("hosts:\n  %s: {token_env: SDD_TEST_GH, scopes: [o/r]}\n", u.Host)), 0o600); err != nil {
+	if err := os.WriteFile(creds, []byte(fmt.Sprintf("hosts:\n  %s: {token_env: QRTX_TEST_GH, scopes: [o/r]}\n", u.Host)), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("SDD_CREDENTIALS", creds)
-	t.Setenv("SDD_TEST_GH", "tok")
+	t.Setenv("QRTX_CREDENTIALS", creds)
+	t.Setenv("QRTX_TEST_GH", "tok")
 	cfg := json.RawMessage(fmt.Sprintf(`{"repo":"o/r","api_url":%q}`, fake.URL))
 	p := &github.Provider{Sleep: func(time.Duration) {}}
 	if err := p.Init(cfg); err != nil {
@@ -139,13 +139,13 @@ func TestCreateRetry(t *testing.T) {
 	fake.Mu.Lock()
 	fake.StallCreate = 3 * time.Second
 	fake.Mu.Unlock()
-	t.Setenv("SDD_TRACKER_DEADLINE", time.Now().Add(time.Second).Format(time.RFC3339Nano))
+	t.Setenv("QRTX_TRACKER_DEADLINE", time.Now().Add(time.Second).Format(time.RFC3339Nano))
 	_ = p.Init(cfg)
 	in := tracker.CreateIssueInput{Title: "once", ClientRef: "retry-1"}
 	if _, err := p.CreateIssue(in); err == nil {
 		t.Fatal("stalled create should time out")
 	}
-	t.Setenv("SDD_TRACKER_DEADLINE", time.Now().Add(10*time.Second).Format(time.RFC3339Nano))
+	t.Setenv("QRTX_TRACKER_DEADLINE", time.Now().Add(10*time.Second).Format(time.RFC3339Nano))
 	_ = p.Init(cfg)
 	is, err := p.CreateIssue(in)
 	if err != nil || is.ClientRef != "retry-1" {

@@ -1,6 +1,6 @@
-# Embedding sdd in a host
+# Embedding qrtx in a host
 
-`github.com/millerscout/sdd` is a Go library as well as a CLI. A host program, such as an agent server or IDE backend, can run the same commands with its own name and plug in richer data sources.
+`github.com/millerscout/qrtx` is a Go library as well as a CLI. A host program, such as an agent server or IDE backend, can run the same commands with its own name and plug in richer data sources.
 
 ## Run the CLI under your own name
 
@@ -8,14 +8,14 @@
 import (
 	"os"
 
-	"github.com/millerscout/sdd"
-	"github.com/millerscout/sdd/cli"
+	"github.com/millerscout/qrtx"
+	"github.com/millerscout/qrtx/cli"
 )
 
 func main() {
-	sdd.CLIName = "mytool sdd"         // shown in templates, errors and usage
-	sdd.DefaultProject = "myproject"   // passed to providers when the caller names none
-	sdd.RepoEnv = append(sdd.RepoEnv, "MYTOOL_REPO") // extra repo-root variables
+	qrtx.CLIName = "mytool qrtx"         // shown in templates, errors and usage
+	qrtx.DefaultProject = "myproject"   // passed to providers when the caller names none
+	qrtx.RepoEnv = append(qrtx.RepoEnv, "MYTOOL_REPO") // extra repo-root variables
 	if err := cli.Run(os.Args[2:], os.Stdout, os.Stderr); err != nil {
 		os.Exit(1)
 	}
@@ -26,44 +26,44 @@ Set these once at startup, before serving requests.
 
 ## Providers
 
-All providers are optional. Without them, `sdd` still runs; the corresponding sections of `propose-context` are just empty.
+All providers are optional. Without them, `qrtx` still runs; the corresponding sections of `propose-context` are just empty.
 
 ### `CodeIndex`
 
 ```go
 type CodeIndex interface {
-	Related(project, query string, limit int) []sdd.CodeHit  // graph neighbours of the request text
-	Symbols(project, name string, limit int) []sdd.CodeHit   // definitions of an exact identifier
-	Semantic(project, query string, limit int) []sdd.CodeHit // embedding search
+	Related(project, query string, limit int) []qrtx.CodeHit  // graph neighbours of the request text
+	Symbols(project, name string, limit int) []qrtx.CodeHit   // definitions of an exact identifier
+	Semantic(project, query string, limit int) []qrtx.CodeHit // embedding search
 }
-sdd.SetCodeIndex(myIndex)
+qrtx.SetCodeIndex(myIndex)
 ```
 
-Return `Path` (repository-relative) and `Line`; `sdd` sets `Source`. The `sdd` binary installs `sdd.TextIndex{Root: repoRoot}`, which scans source files for definitions and returns nothing for `Related` and `Semantic`.
+Return `Path` (repository-relative) and `Line`; `qrtx` sets `Source`. The `qrtx` binary installs `qrtx.TextIndex{Root: repoRoot}`, which scans source files for definitions and returns nothing for `Related` and `Semantic`.
 
 ### `ContextProvider`
 
 ```go
 type ContextProvider interface {
 	OpenIssues(project string) (byRule map[string]int, total int, ok bool)
-	KnownFixes(project string, limit int) []sdd.KnownFix
+	KnownFixes(project string, limit int) []qrtx.KnownFix
 }
-sdd.SetContextProvider(myContext)
+qrtx.SetContextProvider(myContext)
 ```
 
 The results appear in propose context as `issues` and `known_fixes`, giving the planning agent the project's current health and recent fixes that worked.
 
 ### Classifiers
 
-When `sdd` turns a multi-paragraph request into a roadmap, it labels each paragraph as a phase, deferred work or a sequencing note. It labels each follow-up line as a file or an existing phase path. Lines with a clear cue (`later`, `goes first`, a file name) are labelled by rule. The rest go to:
+When `qrtx` turns a multi-paragraph request into a roadmap, it labels each paragraph as a phase, deferred work or a sequencing note. It labels each follow-up line as a file or an existing phase path. Lines with a clear cue (`later`, `goes first`, a file name) are labelled by rule. The rest go to:
 
 ```go
 // First reader: label every line with one key of criteria, or "abstain".
-sdd.LineClassifier = func(kind string, lines []string, criteria map[string]string) (map[string]string, error) { … }
+qrtx.LineClassifier = func(kind string, lines []string, criteria map[string]string) (map[string]string, error) { … }
 
 // Second reader: one LLM completion. It labels lines the first reader
 // missed, and settles lines where the two readers disagree.
-sdd.SecondReader = func(prompt string) (string, error) { … }
+qrtx.SecondReader = func(prompt string) (string, error) { … }
 ```
 
 With neither set, unlabelled paragraphs become phases.
@@ -72,18 +72,18 @@ With neither set, unlabelled paragraphs become phases.
 
 ```go
 type IssueTracker interface {
-	Capabilities() (sdd.TrackerCaps, error)
-	ListIssues(f sdd.IssueFilter) ([]sdd.Issue, error)
-	GetIssue(id string) (sdd.Issue, error)
-	CreateIssue(in sdd.CreateIssueInput) (sdd.Issue, error)   // idempotent per in.ClientRef
-	UpdateIssue(id string, in sdd.UpdateIssueInput) (sdd.Issue, error)
-	TransitionIssue(id, category, native string) (sdd.Issue, error)
+	Capabilities() (qrtx.TrackerCaps, error)
+	ListIssues(f qrtx.IssueFilter) ([]qrtx.Issue, error)
+	GetIssue(id string) (qrtx.Issue, error)
+	CreateIssue(in qrtx.CreateIssueInput) (qrtx.Issue, error)   // idempotent per in.ClientRef
+	UpdateIssue(id string, in qrtx.UpdateIssueInput) (qrtx.Issue, error)
+	TransitionIssue(id, category, native string) (qrtx.Issue, error)
 	Comment(id, markdown, clientRef string) error
 }
-sdd.SetIssueTracker(myTracker)
+qrtx.SetIssueTracker(myTracker)
 ```
 
-The protocol types live in package `github.com/millerscout/sdd/tracker` (standard library only). The root package re-exports them as aliases (`sdd.Issue` is `tracker.Issue`). Provider plugins use `providers/kit` and `tracker` without the root package. A host tracker replaces the backend named in `.sdd.yaml` (`tracker.backend`). Without one, sdd uses the built-in `file` backend (`sdd/issues.jsonl`), or runs `sdd-tracker-<name>` from `PATH` as described in [tracker-protocol.md](tracker-protocol.md). The interface and the protocol may change before v1.
+The protocol types live in package `github.com/millerscout/qrtx/tracker` (standard library only). The root package re-exports them as aliases (`qrtx.Issue` is `tracker.Issue`). Provider plugins use `providers/kit` and `tracker` without the root package. A host tracker replaces the backend named in `.sdd.yaml` (`tracker.backend`). Without one, qrtx uses the built-in `file` backend (`sdd/issues.jsonl`), or runs `qrtx-tracker-<name>` from `PATH` as described in [tracker-protocol.md](tracker-protocol.md). The interface and the protocol may change before v1.
 
 ## Stability
 

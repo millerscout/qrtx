@@ -1,6 +1,6 @@
 //go:build !windows
 
-package sdd
+package qrtx
 
 import (
 	"os"

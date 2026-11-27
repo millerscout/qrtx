@@ -10,14 +10,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/millerscout/sdd/providers/kit"
-	"github.com/millerscout/sdd/providers/kit/kittest"
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/providers/kit"
+	"github.com/millerscout/qrtx/providers/kit/kittest"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 // mem is an in-memory provider for the kit's own tests.
@@ -137,7 +138,7 @@ func writeCreds(t *testing.T, body string) string {
 	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("SDD_CREDENTIALS", p)
+	t.Setenv("QRTX_CREDENTIALS", p)
 	return p
 }
 
@@ -151,12 +152,12 @@ func code(err error) string {
 
 func TestCredentials(t *testing.T) {
 	path := writeCreds(t, `hosts:
-  api.github.com: {token_env: SDD_TEST_TOKEN, scopes: [o/r]}
-  127.0.0.1:9999: {token_command: 'printf "%s|%s" "$SDD_CRED_HOST" "$SDD_CRED_SCOPE"', scopes: ["*"]}
-  jira.example: {token_env: SDD_TEST_TOKEN, email_env: SDD_TEST_EMPTY, scopes: [SHOP]}
+  api.github.com: {token_env: QRTX_TEST_TOKEN, scopes: [o/r]}
+  127.0.0.1:9999: {token_command: 'printf "%s|%s" "$QRTX_CRED_HOST" "$QRTX_CRED_SCOPE"', scopes: ["*"]}
+  jira.example: {token_env: QRTX_TEST_TOKEN, email_env: QRTX_TEST_EMPTY, scopes: [SHOP]}
 `)
-	t.Setenv("SDD_TEST_TOKEN", "tok")
-	t.Setenv("SDD_TEST_EMPTY", "")
+	t.Setenv("QRTX_TEST_TOKEN", "tok")
+	t.Setenv("QRTX_TEST_EMPTY", "")
 	if c, err := kit.Credentials("api.github.com", "O/R"); err != nil || c.Token != "tok" {
 		t.Fatalf("bound: %+v %v", c, err)
 	}
@@ -164,7 +165,7 @@ func TestCredentials(t *testing.T) {
 		{"evil.example", "o/r", "evil.example"},
 		{"127.0.0.1:8888", "x", "127.0.0.1:8888"},
 		{"api.github.com", "attacker/x", "attacker/x"},
-		{"jira.example", "SHOP", "SDD_TEST_EMPTY"},
+		{"jira.example", "SHOP", "QRTX_TEST_EMPTY"},
 	} {
 		_, err := kit.Credentials(tc.host, tc.scope)
 		if code(err) != "auth" || !strings.Contains(err.Error(), tc.want) || !strings.Contains(err.Error(), path) {
@@ -211,8 +212,8 @@ func TestBindHost(t *testing.T) {
 func bindServer(t *testing.T, srv *httptest.Server, scope string) string {
 	t.Helper()
 	u, _ := url.Parse(srv.URL)
-	writeCreds(t, fmt.Sprintf("hosts:\n  %s: {token_env: SDD_TEST_TOKEN, scopes: [%s]}\n", u.Host, scope))
-	t.Setenv("SDD_TEST_TOKEN", "tok")
+	writeCreds(t, fmt.Sprintf("hosts:\n  %s: {token_env: QRTX_TEST_TOKEN, scopes: [%s]}\n", u.Host, scope))
+	t.Setenv("QRTX_TEST_TOKEN", "tok")
 	return u.Host
 }
 
@@ -250,7 +251,7 @@ func TestHTTP(t *testing.T) {
 	if _, err := c.Do(kit.Request{Method: "GET", Path: "/flaky"}, &out); err != nil || !out.OK {
 		t.Fatalf("503 then 200: %v", err)
 	}
-	t.Setenv("SDD_TRACKER_DEADLINE", time.Now().Add(3*time.Second).Format(time.RFC3339Nano))
+	t.Setenv("QRTX_TRACKER_DEADLINE", time.Now().Add(3*time.Second).Format(time.RFC3339Nano))
 	c, _ = kit.NewClient(srv.URL, "o/r", "sdd-test", kit.BearerAuth)
 	start := time.Now()
 	_, err = c.Do(kit.Request{Method: "GET", Path: "/limited"}, nil)
@@ -339,3 +340,27 @@ type fakeT struct {
 func (f *fakeT) Errorf(string, ...any) { f.failed = true }
 func (f *fakeT) Fatalf(string, ...any) { f.failed = true }
 func (f *fakeT) Helper()               {}
+
+func TestCredentialsPathFallsBackToLegacySddDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses XDG_CONFIG_HOME")
+	}
+	dir := t.TempDir()
+	t.Setenv("QRTX_CREDENTIALS", "")
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	want := filepath.Join(dir, "qrtx", "credentials.yaml")
+	if got, err := kit.CredentialsPath(); err != nil || got != want {
+		t.Fatalf("no file: got %q %v, want %q", got, err, want)
+	}
+	legacy := filepath.Join(dir, "sdd", "credentials.yaml")
+	_ = os.MkdirAll(filepath.Dir(legacy), 0o700)
+	_ = os.WriteFile(legacy, []byte("{}\n"), 0o600)
+	if got, _ := kit.CredentialsPath(); got != legacy {
+		t.Fatalf("legacy only: got %q, want %q", got, legacy)
+	}
+	_ = os.MkdirAll(filepath.Dir(want), 0o700)
+	_ = os.WriteFile(want, []byte("{}\n"), 0o600)
+	if got, _ := kit.CredentialsPath(); got != want {
+		t.Fatalf("both: got %q, want %q", got, want)
+	}
+}

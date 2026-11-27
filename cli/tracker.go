@@ -9,21 +9,21 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/millerscout/sdd"
+	"github.com/millerscout/qrtx"
 )
 
 const trackerUsage = "Usage: %s tracker list [--status <category>] [--change <slug>] [--all] [--json] | get <ref> [--json] | add <title> [--description <text>] [--client-ref <ref>] | close <ref> [--canceled] | start <ref> <slug> | from-deferred --change <slug> | outbox [--json] [--drop <seq>] | check [--backend <name>] [--allow-writes] [--json] | init | setup <github|jira> [flags] | merge-driver <base> <ours> <theirs>\n"
 
 func runTracker(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		fmt.Fprintf(stderr, trackerUsage, sdd.CLIName)
+		fmt.Fprintf(stderr, trackerUsage, qrtx.CLIName)
 		return fmt.Errorf("missing tracker subcommand")
 	}
 	// merge-driver runs inside git merge; it needs no repository config.
 	if args[0] == "merge-driver" {
 		return trackerMergeDriver(args[1:])
 	}
-	root, err := sdd.RepoRoot()
+	root, err := qrtx.RepoRoot()
 	if err != nil {
 		return err
 	}
@@ -37,30 +37,30 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		_, err := trackerSetup(root, args[1:], stdout)
 		return err
 	}
-	t, err := sdd.OpenTracker(root)
+	t, err := qrtx.OpenTracker(root)
 	if err != nil {
 		return err
 	}
 	for _, w := range t.Warnings() {
 		fmt.Fprintf(stderr, "warning: %s\n", w)
 	}
-	drain := func() { reportDrain(sdd.DrainOutbox(root, t), stderr) }
+	drain := func() { reportDrain(qrtx.DrainOutbox(root, t), stderr) }
 	drain()
 	defer drain()
 	asJSON := hasFlag(args, "--json")
 	switch args[0] {
 	case "list":
-		f := sdd.IssueFilter{Change: flagValue(args, "--change")}
+		f := qrtx.IssueFilter{Change: flagValue(args, "--change")}
 		if st := flagValue(args, "--status"); st != "" {
 			f.Categories = []string{st}
 		} else if !hasFlag(args, "--all") {
-			f.Categories = []string{sdd.CategoryBacklog, sdd.CategoryUnstarted, sdd.CategoryStarted}
+			f.Categories = []string{qrtx.CategoryBacklog, qrtx.CategoryUnstarted, qrtx.CategoryStarted}
 		}
 		list, err := t.ListIssues(f)
 		if err != nil {
 			return err
 		}
-		list = sdd.WithRecentCreates(root, t.Backend, f, list, t.GetIssue)
+		list = qrtx.WithRecentCreates(root, t.Backend, f, list, t.GetIssue)
 		if asJSON {
 			return writeJSON(stdout, list)
 		}
@@ -73,7 +73,7 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		if ref == "" {
 			return fmt.Errorf("tracker get: pass an issue ref")
 		}
-		backend, id := sdd.ParseIssueRef(ref, t.Backend)
+		backend, id := qrtx.ParseIssueRef(ref, t.Backend)
 		impl, err := t.For(backend)
 		if err != nil {
 			return err
@@ -103,22 +103,22 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		cref := flagValue(args, "--client-ref")
 		fresh := cref == ""
 		if fresh {
-			cref = sdd.NewClientRef(sdd.RepoName(root), "", title, sdd.NewNonce())
+			cref = qrtx.NewClientRef(qrtx.RepoName(root), "", title, qrtx.NewNonce())
 		}
-		is, err := t.CreateIssue(sdd.CreateIssueInput{
+		is, err := t.CreateIssue(qrtx.CreateIssueInput{
 			Title:       title,
 			Description: flagValue(args, "--description"),
-			Refs:        []sdd.SDDRef{{Repo: sdd.RepoName(root), Project: t.Project()}},
+			Refs:        []qrtx.SDDRef{{Repo: qrtx.RepoName(root), Project: t.Project()}},
 			ClientRef:   cref,
 			Fresh:       fresh,
 		})
 		if err != nil {
-			if sdd.IsUnavailable(err) {
-				fmt.Fprintf(stderr, "the issue may or may not have been created; to retry without a duplicate run:\n  %s tracker add %s --description %s --client-ref %s\n", sdd.CLIName, shQuote(title), shQuote(flagValue(args, "--description")), shQuote(cref))
+			if qrtx.IsUnavailable(err) {
+				fmt.Fprintf(stderr, "the issue may or may not have been created; to retry without a duplicate run:\n  %s tracker add %s --description %s --client-ref %s\n", qrtx.CLIName, shQuote(title), shQuote(flagValue(args, "--description")), shQuote(cref))
 			}
 			return err
 		}
-		sdd.RecordCreated(root, t.Backend, is)
+		qrtx.RecordCreated(root, t.Backend, is)
 		fmt.Fprintf(stdout, "added %s\n", t.Ref("", is.ID))
 		return nil
 	case "close":
@@ -126,14 +126,14 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		if ref == "" {
 			return fmt.Errorf("tracker close: pass an issue ref")
 		}
-		backend, id := sdd.ParseIssueRef(ref, t.Backend)
+		backend, id := qrtx.ParseIssueRef(ref, t.Backend)
 		impl, err := t.For(backend)
 		if err != nil {
 			return err
 		}
-		cat := sdd.CategoryCompleted
+		cat := qrtx.CategoryCompleted
 		if hasFlag(args, "--canceled") {
-			cat = sdd.CategoryCanceled
+			cat = qrtx.CategoryCanceled
 		}
 		is, err := impl.TransitionIssue(id, cat, t.Native(cat))
 		if err != nil {
@@ -146,7 +146,7 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		if len(pos) != 2 {
 			return fmt.Errorf("tracker start: pass <ref> <slug>")
 		}
-		res, err := sdd.StartFromIssue(root, t, pos[0], pos[1])
+		res, err := qrtx.StartFromIssue(root, t, pos[0], pos[1])
 		if err != nil {
 			return err
 		}
@@ -160,14 +160,14 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		if slug == "" {
 			return fmt.Errorf("tracker from-deferred: pass --change <slug>")
 		}
-		n, err := sdd.QueueDeferredIssues(root, t, slug)
+		n, err := qrtx.QueueDeferredIssues(root, t, slug)
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, "queued %d deferred issue(s) for %s\n", n, slug)
 		return nil
 	case "check":
-		results, err := sdd.CheckTracker(root, flagValue(args, "--backend"), hasFlag(args, "--allow-writes"))
+		results, err := qrtx.CheckTracker(root, flagValue(args, "--backend"), hasFlag(args, "--allow-writes"))
 		if err != nil {
 			return err
 		}
@@ -192,17 +192,17 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	default:
-		fmt.Fprintf(stderr, trackerUsage, sdd.CLIName)
+		fmt.Fprintf(stderr, trackerUsage, qrtx.CLIName)
 		return fmt.Errorf("unknown tracker subcommand: %s", args[0])
 	}
 }
 
-func reportDrain(rep sdd.DrainReport, stderr io.Writer) {
+func reportDrain(rep qrtx.DrainReport, stderr io.Writer) {
 	for _, w := range rep.Warnings {
 		fmt.Fprintf(stderr, "warning: %s\n", w)
 	}
 	if rep.Pending > 0 {
-		fmt.Fprintf(stderr, "tracker: %d pending (%s tracker outbox)\n", rep.Pending, sdd.CLIName)
+		fmt.Fprintf(stderr, "tracker: %d pending (%s tracker outbox)\n", rep.Pending, qrtx.CLIName)
 	}
 }
 
@@ -212,13 +212,13 @@ func trackerOutbox(root string, args []string, stdout, stderr io.Writer) error {
 		if _, err := fmt.Sscanf(seq, "%d", &n); err != nil {
 			return fmt.Errorf("tracker outbox --drop: %q is not a sequence number", seq)
 		}
-		if err := sdd.DropOutboxEntry(root, n); err != nil {
+		if err := qrtx.DropOutboxEntry(root, n); err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, "dropped %d\n", n)
 		return nil
 	}
-	entries, err := sdd.ListOutbox(root)
+	entries, err := qrtx.ListOutbox(root)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func registerMergeDriver(root string) (action, driver string, err error) {
 	}
 	driver = fmt.Sprintf("%q tracker merge-driver %%O %%A %%B", exe)
 	attr := filepath.Join(root, ".gitattributes")
-	line := sdd.IssuesFile + " merge=sdd-issues"
+	line := qrtx.IssuesFile + " merge=sdd-issues"
 	raw, err := os.ReadFile(attr)
 	if err != nil && !os.IsNotExist(err) {
 		return "", "", err
@@ -313,7 +313,7 @@ func trackerMergeDriver(args []string) error {
 	if err != nil {
 		return err
 	}
-	merged, conflict, err := sdd.MergeIssues(base, ours, theirs)
+	merged, conflict, err := qrtx.MergeIssues(base, ours, theirs)
 	if err != nil {
 		return err
 	}
@@ -321,7 +321,7 @@ func trackerMergeDriver(args []string) error {
 		return err
 	}
 	if conflict {
-		return fmt.Errorf("conflicting edits in %s; resolve the marked issues", sdd.IssuesFile)
+		return fmt.Errorf("conflicting edits in %s; resolve the marked issues", qrtx.IssuesFile)
 	}
 	return nil
 }

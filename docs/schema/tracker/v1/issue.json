@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/millerscout/sdd/docs/schema/tracker/v1/issue.json",
-  "title": "sdd tracker issue (sdd.adapter/v1)",
+  "$id": "https://github.com/millerscout/qrtx/docs/schema/tracker/v1/issue.json",
+  "title": "qrtx tracker issue (sdd.adapter/v1)",
   "type": "object",
   "required": ["id", "title", "status"],
   "additionalProperties": true,

@@ -104,7 +104,7 @@ func TestHooksInstall(t *testing.T) {
 	_ = os.MkdirAll(filepath.Dir(path), 0o755)
 	orig := `{"permissions":{"allow":["Bash(go test:*)"]},"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo pre"}]}]}}`
 	_ = os.WriteFile(path, []byte(orig), 0o644)
-	changed, err := InstallHooks(path, "sdd")
+	changed, err := InstallHooks(path, "qrtx")
 	if err != nil || !changed {
 		t.Fatalf("%v %v", changed, err)
 	}
@@ -116,19 +116,45 @@ func TestHooksInstall(t *testing.T) {
 	if s["permissions"] == nil || !strings.Contains(string(raw), "echo pre") {
 		t.Fatalf("lost existing settings:\n%s", raw)
 	}
-	for _, want := range []string{`"SessionStart"`, `"UserPromptSubmit"`, `"PostToolUse"`, `"SessionEnd"`, "sdd sync begin --hook", "sdd sync heartbeat --hook --quiet", "sdd sync inbox --hook --brief", "sdd sync end --hook", `"async": true`, `"matcher": "*"`} {
+	for _, want := range []string{`"SessionStart"`, `"UserPromptSubmit"`, `"PostToolUse"`, `"SessionEnd"`, "qrtx sync begin --hook", "qrtx sync heartbeat --hook --quiet", "qrtx sync inbox --hook --brief", "qrtx sync end --hook", `"async": true`, `"matcher": "*"`} {
 		if !strings.Contains(string(raw), want) {
 			t.Fatalf("missing %s:\n%s", want, raw)
 		}
 	}
-	if strings.Count(string(raw), "sdd sync heartbeat --hook --quiet") != 2 {
+	if strings.Count(string(raw), "qrtx sync heartbeat --hook --quiet") != 2 {
 		t.Fatalf("heartbeat should appear for two events:\n%s", raw)
 	}
-	changed, err = InstallHooks(path, "sdd")
+	changed, err = InstallHooks(path, "qrtx")
 	if err != nil || changed {
 		t.Fatalf("re-run: %v %v", changed, err)
 	}
 	if again, _ := os.ReadFile(path); string(again) != string(raw) {
 		t.Fatal("re-run rewrote the file")
+	}
+}
+
+func TestHooksInstallReplacesLegacySdd(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.local.json")
+	orig := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"sdd sync begin --hook"}]}],` +
+		`"UserPromptSubmit":[{"hooks":[{"type":"command","command":"\"/usr/local/bin/sdd\" sync heartbeat --hook --quiet"},{"type":"command","command":"echo mine"}]}],` +
+		`"SessionEnd":[{"hooks":[{"type":"command","command":"sdd sync end --hook --other"}]}]}}`
+	_ = os.WriteFile(path, []byte(orig), 0o644)
+	if changed, err := InstallHooks(path, "qrtx"); err != nil || !changed {
+		t.Fatalf("%v %v", changed, err)
+	}
+	raw, _ := os.ReadFile(path)
+	got := string(raw)
+	for _, gone := range []string{`"sdd sync begin --hook"`, `/usr/local/bin/sdd`} {
+		if strings.Contains(got, gone) {
+			t.Fatalf("legacy hook %s kept:\n%s", gone, got)
+		}
+	}
+	for _, want := range []string{"qrtx sync begin --hook", "qrtx sync heartbeat --hook --quiet", "echo mine", "sdd sync end --hook --other"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %s:\n%s", want, got)
+		}
+	}
+	if changed, err := InstallHooks(path, "qrtx"); err != nil || changed {
+		t.Fatalf("re-run: %v %v", changed, err)
 	}
 }

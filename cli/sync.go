@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/millerscout/sdd"
+	"github.com/millerscout/qrtx"
 )
 
 const syncUsage = "Usage: %s sync heartbeat|begin|end [--session id] [--hook] [--quiet] [--no-daemon] | claim <key> [--release] | inbox [--json] [--brief] [--hook] | watch [--json] | status [--json] | stop | serve\n"
@@ -34,40 +34,40 @@ func readHook(args []string) hookInput {
 
 func runSync(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		fmt.Fprintf(stderr, syncUsage, sdd.CLIName)
+		fmt.Fprintf(stderr, syncUsage, qrtx.CLIName)
 		return fmt.Errorf("missing sync subcommand")
 	}
 	if hasFlag(args, "--no-daemon") {
-		sdd.NoDaemon = true
+		qrtx.NoDaemon = true
 	}
 	hook := readHook(args)
-	root, err := sdd.RepoRoot()
+	root, err := qrtx.RepoRoot()
 	if err != nil {
 		return err
 	}
-	if hook.Cwd != "" && os.Getenv(sdd.EnvRepo) == "" {
+	if hook.Cwd != "" && os.Getenv(qrtx.EnvRepo) == "" {
 		if wd, err := os.Getwd(); err == nil && wd != hook.Cwd {
 			if err := os.Chdir(hook.Cwd); err == nil {
-				if r, err := sdd.RepoRoot(); err == nil {
+				if r, err := qrtx.RepoRoot(); err == nil {
 					root = r
 				}
 				_ = os.Chdir(wd)
 			}
 		}
 	}
-	who := sdd.ResolveSession(root, flagValue(args, "--session"), hook.SessionID)
+	who := qrtx.ResolveSession(root, flagValue(args, "--session"), hook.SessionID)
 	now := time.Now()
 	// Hook-facing commands never fail the caller: a failing UserPromptSubmit
 	// hook would block the user's prompt.
 	soft := func(err error) error {
 		if err != nil {
-			fmt.Fprintf(stderr, "sdd sync %s: warning: %v\n", args[0], err)
+			fmt.Fprintf(stderr, "qrtx sync %s: warning: %v\n", args[0], err)
 		}
 		return nil
 	}
 	switch args[0] {
 	case "heartbeat":
-		res, err := sdd.Heartbeat(root, who, now, true)
+		res, err := qrtx.Heartbeat(root, who, now, true)
 		if err == nil && !hasFlag(args, "--quiet") {
 			switch {
 			case res.Debounced:
@@ -81,19 +81,19 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 		}
 		return soft(err)
 	case "begin":
-		return soft(sdd.BeginSession(root, who, now, os.Getenv("CLAUDE_ENV_FILE"), true))
+		return soft(qrtx.BeginSession(root, who, now, os.Getenv("CLAUDE_ENV_FILE"), true))
 	case "end":
-		return soft(sdd.EndSession(root, who, now))
+		return soft(qrtx.EndSession(root, who, now))
 	case "claim":
 		pos := positionals(args[1:], "--session")
 		if len(pos) != 1 {
 			return fmt.Errorf("sync claim: pass one key (an issue ref such as github:12, or <slug>/<task id>)")
 		}
 		release := hasFlag(args, "--release")
-		err := sdd.Claim(root, who, pos[0], release, now, true)
-		var held *sdd.ClaimHeldError
+		err := qrtx.Claim(root, who, pos[0], release, now, true)
+		var held *qrtx.ClaimHeldError
 		switch {
-		case errors.Is(err, sdd.ErrSyncNotEnabled):
+		case errors.Is(err, qrtx.ErrSyncNotEnabled):
 			fmt.Fprintln(stdout, "sync not enabled; claim skipped")
 			return nil
 		case errors.As(err, &held):
@@ -111,7 +111,7 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 		if hasFlag(args, "--hook") {
 			wait = time.Second
 		}
-		evs, err := sdd.Inbox(root, who, now, wait)
+		evs, err := qrtx.Inbox(root, who, now, wait)
 		if err != nil {
 			if hasFlag(args, "--hook") {
 				return soft(err)
@@ -120,7 +120,7 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 		}
 		if hasFlag(args, "--json") {
 			if evs == nil {
-				evs = []sdd.SyncEvent{}
+				evs = []qrtx.SyncEvent{}
 			}
 			return writeJSON(stdout, evs)
 		}
@@ -129,19 +129,19 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 			limit = 10
 		}
 		if len(evs) > 0 && hasFlag(args, "--hook") {
-			fmt.Fprintln(stdout, "Other sdd sessions since your last prompt:")
+			fmt.Fprintln(stdout, "Other qrtx sessions since your last prompt:")
 		}
 		for _, e := range evs[:limit] {
 			fmt.Fprintf(stdout, "- %s\n", e.Summary())
 		}
 		if limit < len(evs) {
-			fmt.Fprintf(stdout, "…and %d more (%s sync inbox)\n", len(evs)-limit, sdd.CLIName)
+			fmt.Fprintf(stdout, "…and %d more (%s sync inbox)\n", len(evs)-limit, qrtx.CLIName)
 		}
 		return nil
 	case "watch":
 		var last int64 = -1
 		for {
-			evs, err := sdd.EventsAfter(root, last)
+			evs, err := qrtx.EventsAfter(root, last)
 			if err != nil {
 				return err
 			}
@@ -172,7 +172,7 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 	case "status":
-		st, err := sdd.ReadSyncStatus(root, now)
+		st, err := qrtx.ReadSyncStatus(root, now)
 		if err != nil {
 			return err
 		}
@@ -180,7 +180,7 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 			return writeJSON(stdout, st)
 		}
 		if !st.Enabled {
-			fmt.Fprintf(stdout, "sync not enabled here (run %s sync heartbeat, or install hooks with %s skills install --hooks)\n", sdd.CLIName, sdd.CLIName)
+			fmt.Fprintf(stdout, "sync not enabled here (run %s sync heartbeat, or install hooks with %s skills install --hooks)\n", qrtx.CLIName, qrtx.CLIName)
 			return nil
 		}
 		if st.Daemon != nil {
@@ -202,7 +202,7 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "outbox: %d pending\n", st.Outbox)
 		return nil
 	case "stop":
-		was, err := sdd.StopDaemon(root, 5*time.Second)
+		was, err := qrtx.StopDaemon(root, 5*time.Second)
 		if err != nil {
 			return err
 		}
@@ -213,9 +213,9 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "serve":
-		return sdd.RunDaemon(root, stdout)
+		return qrtx.RunDaemon(root, stdout)
 	default:
-		fmt.Fprintf(stderr, syncUsage, sdd.CLIName)
+		fmt.Fprintf(stderr, syncUsage, qrtx.CLIName)
 		return fmt.Errorf("unknown sync subcommand: %s", args[0])
 	}
 }

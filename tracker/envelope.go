@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-// AdapterProtocol is the envelope version sdd speaks to plugins.
+// AdapterProtocol is the envelope version qrtx speaks to plugins.
 const AdapterProtocol = "sdd.adapter/v1"
 
 // Adapter error codes.
@@ -19,7 +19,7 @@ const (
 	ErrCodeUnavailable       = "unavailable"
 )
 
-// AdapterRequest is the one JSON document sdd writes to a plugin's stdin.
+// AdapterRequest is the one JSON document qrtx writes to a plugin's stdin.
 type AdapterRequest struct {
 	Protocol string          `json:"protocol"`
 	Kind     string          `json:"kind"`
@@ -61,5 +61,5 @@ func (e *AdapterError) Retryable() bool {
 
 var backendNameRE = regexp.MustCompile(`^[a-z0-9-]+$`)
 
-// ValidBackendName reports whether name may be resolved as sdd-tracker-<name>.
+// ValidBackendName reports whether name may be resolved as qrtx-tracker-<name>.
 func ValidBackendName(name string) bool { return backendNameRE.MatchString(name) }

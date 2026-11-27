@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"os"
@@ -23,7 +23,7 @@ func TestTrackerExec(t *testing.T) {
 		t.Fatalf("capabilities must come first: %v", log)
 	}
 	if b, _ := os.ReadFile(filepath.Join(dir, "deadline")); len(b) == 0 {
-		t.Fatal("plugin did not get SDD_TRACKER_DEADLINE")
+		t.Fatal("plugin did not get QRTX_TRACKER_DEADLINE")
 	} else if d, err := time.Parse(time.RFC3339Nano, string(b)); err != nil || time.Until(d) > 3*time.Second {
 		t.Fatalf("deadline %q %v (timeout is 2s)", b, err)
 	}
@@ -60,7 +60,7 @@ func TestTrackerExec(t *testing.T) {
 		tr, _ := OpenTracker(root)
 		_, err := tr.GetIssue("F-1")
 		if err == nil || !strings.Contains(err.Error(), "GET /issues") || strings.Contains(err.Error(), "timed out after") {
-			t.Fatalf("want the plugin's error, not sdd's kill: %v", err)
+			t.Fatalf("want the plugin's error, not qrtx's kill: %v", err)
 		}
 	})
 	t.Run("invalid backend name", func(t *testing.T) {

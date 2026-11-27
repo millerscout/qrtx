@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/millerscout/sdd/tasksmd"
+	"github.com/millerscout/qrtx/tasksmd"
 	"gopkg.in/yaml.v3"
 )
 

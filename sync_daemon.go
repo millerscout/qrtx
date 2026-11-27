@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"encoding/json"
@@ -18,12 +18,12 @@ const (
 	syncLogFile    = "sync.log"
 )
 
-// NoDaemon is set by --no-daemon; with it (or CI, or SDD_NO_DAEMON=1) no
+// NoDaemon is set by --no-daemon; with it (or CI, or QRTX_NO_DAEMON=1) no
 // command starts the sync daemon.
 var NoDaemon bool
 
 func daemonDisabled() bool {
-	return NoDaemon || os.Getenv("CI") != "" || os.Getenv("SDD_NO_DAEMON") == "1"
+	return NoDaemon || os.Getenv("CI") != "" || os.Getenv("QRTX_NO_DAEMON") == "1"
 }
 
 // daemonRunning reports whether a process holds daemon.lock in dir.
@@ -40,7 +40,7 @@ func daemonRunning(dir string) bool {
 }
 
 // DaemonCommand returns the program and arguments that start the daemon.
-// Hosts that embed sdd under another binary may replace it.
+// Hosts that embed qrtx under another binary may replace it.
 var DaemonCommand = func() (string, []string, error) {
 	exe, err := os.Executable()
 	return exe, []string{"sync", "serve"}, err
@@ -95,7 +95,7 @@ type daemonWork func(root string, logw io.Writer)
 
 var daemonRootWork []daemonWork
 
-// RunDaemon is `sdd sync serve`. It returns at once when another daemon
+// RunDaemon is `qrtx sync serve`. It returns at once when another daemon
 // holds the lock. While a lease is live it expires leases every tick and, in
 // a goroutine that never blocks expiry, drains each live root's outbox and
 // runs the registered per-root work. With no live lease (or a stop request)
@@ -255,7 +255,7 @@ func StopDaemon(repoRoot string, wait time.Duration) (bool, error) {
 	return true, fmt.Errorf("sync daemon did not stop within %s", wait)
 }
 
-// SyncStatus is `sdd sync status --json`.
+// SyncStatus is `qrtx sync status --json`.
 type SyncStatus struct {
 	Enabled  bool                `json:"enabled"`
 	Daemon   *DaemonInfo         `json:"daemon"`

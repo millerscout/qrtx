@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/millerscout/sdd/docs/schema/tracker/v1/response.json",
-  "title": "sdd adapter response (stdout)",
+  "$id": "https://github.com/millerscout/qrtx/docs/schema/tracker/v1/response.json",
+  "title": "qrtx adapter response (stdout)",
   "type": "object",
   "oneOf": [
     {"required": ["result"]},

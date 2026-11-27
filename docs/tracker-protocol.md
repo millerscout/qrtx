@@ -1,8 +1,8 @@
 # Tracker protocol (`sdd.adapter/v1`, kind `tracker`)
 
-sdd keeps a project's backlog in an issue tracker. The tracker can be the built-in `file` backend (`sdd/issues.jsonl`), or any program that implements this protocol: Jira, GitHub Issues, Linear, GitLab, or your own. This document and the JSON Schemas in [`schema/tracker/v1/`](schema/tracker/v1/) are the whole contract. You do not need to read sdd's Go code to write a plugin.
+qrtx keeps a project's backlog in an issue tracker. The tracker can be the built-in `file` backend (`sdd/issues.jsonl`), or any program that implements this protocol: Jira, GitHub Issues, Linear, GitLab, or your own. This document and the JSON Schemas in [`schema/tracker/v1/`](schema/tracker/v1/) are the whole contract. You do not need to read qrtx's Go code to write a plugin.
 
-The protocol is **unstable until sdd v1**.
+The protocol is **unstable until qrtx v1**.
 
 ## Choosing a backend
 
@@ -10,7 +10,7 @@ The protocol is **unstable until sdd v1**.
 # .sdd.yaml
 project: shop                  # optional; names this project in issue refs
 tracker:
-  backend: github              # file (default) | <name> → sdd-tracker-<name> on PATH
+  backend: github              # file (default) | <name> → qrtx-tracker-<name> on PATH
   config: { repo: owner/name } # passed verbatim to the plugin; never secrets
   status_map:                  # optional: exact native status per category
     started: In Progress
@@ -19,13 +19,13 @@ tracker:
   timeout: 30                  # seconds per plugin call
 ```
 
-- **Names:** a backend name matches `^[a-z0-9-]+$`, and sdd finds the program as `sdd-tracker-<name>` on `PATH` only. sdd never runs a path from inside the repository.
-- **Credentials:** sdd never puts secrets in the request. A plugin resolves them per host and repo/project from the user-level credentials file (see Credentials below), never from `.sdd.yaml`.
+- **Names:** a backend name matches `^[a-z0-9-]+$`, and qrtx finds the program as `qrtx-tracker-<name>` on `PATH` only. qrtx never runs a path from inside the repository.
+- **Credentials:** qrtx never puts secrets in the request. A plugin resolves them per host and repo/project from the user-level credentials file (see Credentials below), never from `.sdd.yaml`.
 - **Mirror:** `mirror` is reserved. Only `change` (one issue per change) is implemented.
 
 ## Calling convention
 
-sdd starts the plugin once per operation, as `sdd-tracker-<name> <op>`, and writes one JSON request to its stdin:
+qrtx starts the plugin once per operation, as `qrtx-tracker-<name> <op>`, and writes one JSON request to its stdin:
 
 ```json
 {"protocol":"sdd.adapter/v1","kind":"tracker","op":"get_issue","config":{"repo":"owner/name"},"args":{"id":"123"}}
@@ -40,11 +40,11 @@ The plugin writes one JSON response to stdout and exits:
 
 - **Exit code:** 0 with `result`, or 1 with `error`. Anything else on stdout, or a missing response, counts as a failure.
 - **stderr:** shown to the user; use it for diagnostics.
-- **Timeout:** sdd kills a call after the timeout (30s by default).
+- **Timeout:** qrtx kills a call after the timeout (30s by default).
 
 ### Error codes
 
-| Code | Meaning | Does sdd retry a queued write? |
+| Code | Meaning | Does qrtx retry a queued write? |
 |---|---|---|
 | `not_found` | the issue does not exist | no |
 | `unsupported` | the operation is not implemented | no |
@@ -56,7 +56,7 @@ The plugin writes one JSON response to stdout and exits:
 
 ## Operations
 
-sdd always calls `capabilities` first, and never calls an operation the plugin does not list in `ops`.
+qrtx always calls `capabilities` first, and never calls an operation the plugin does not list in `ops`.
 
 | Op | `args` | `result` |
 |---|---|---|
@@ -70,21 +70,21 @@ sdd always calls `capabilities` first, and never calls an operation the plugin d
 
 ### Version negotiation
 
-`protocols` lists every envelope version the plugin speaks. sdd uses the newest version both sides know. When there is none, sdd stops with a message that names both lists.
+`protocols` lists every envelope version the plugin speaks. qrtx uses the newest version both sides know. When there is none, qrtx stops with a message that names both lists.
 
 ### Idempotent create (MUST)
 
-sdd queues every write in a local outbox and may resend it after a crash or timeout. `create_issue` carries a `client_ref`.
+qrtx queues every write in a local outbox and may resend it after a crash or timeout. `create_issue` carries a `client_ref`.
 - **Before creating,** a plugin MUST look for an existing issue with that `client_ref` and return it if one exists.
-- **`fresh`:** when `true`, sdd has never sent this `client_ref` before, so the plugin MAY skip that lookup. sdd never sets it on a resend. A plugin that ignores it stays correct, only slower.
+- **`fresh`:** when `true`, qrtx has never sent this `client_ref` before, so the plugin MAY skip that lookup. qrtx never sets it on a resend. A plugin that ignores it stays correct, only slower.
 - **Where to keep it:** store the `client_ref` in the sdd marker (below) or in a backend field.
-- **Checking it:** `sdd tracker check --allow-writes` creates twice with the same `client_ref` and fails the plugin if two issues come back.
+- **Checking it:** `qrtx tracker check --allow-writes` creates twice with the same `client_ref` and fails the plugin if two issues come back.
 
 `comment` carries a `client_ref` too. Plugins SHOULD skip a comment whose `client_ref` is already on the issue.
 
 ### Pagination
 
-`list_issues` returns at most `limit` issues (all of them when `limit` is 0) and an opaque `cursor` when more exist. sdd sends the cursor back unchanged. Plugins handle the vendor's rate limits themselves, and return `rate_limited` only when they give up.
+`list_issues` returns at most `limit` issues (all of them when `limit` is 0) and an opaque `cursor` when more exist. qrtx sends the cursor back unchanged. Plugins handle the vendor's rate limits themselves, and return `rate_limited` only when they give up.
 
 ## The issue
 
@@ -106,15 +106,15 @@ Labels such as `sdd:change/dark-mode` and `sdd:project/shop` are optional extras
 
 ## Lifecycle
 
-| sdd command | Tracker writes (queued in the outbox, then sent) |
+| qrtx command | Tracker writes (queued in the outbox, then sent) |
 |---|---|
-| `sdd tracker start <ref> <slug>` | `transition_issue(started)` and `update_issue(add_sdd)` |
-| `sdd change archive <slug>` | `comment` (unless `comments: off`; dropped if the plugin has no `comment`), then `transition_issue(completed)` only when no other active change lists the issue in its `issues:` |
-| `sdd tracker from-deferred --change <slug>` | `create_issue` per `## Deferred` bullet, with `role: deferred` |
+| `qrtx tracker start <ref> <slug>` | `transition_issue(started)` and `update_issue(add_sdd)` |
+| `qrtx change archive <slug>` | `comment` (unless `comments: off`; dropped if the plugin has no `comment`), then `transition_issue(completed)` only when no other active change lists the issue in its `issues:` |
+| `qrtx tracker from-deferred --change <slug>` | `create_issue` per `## Deferred` bullet, with `role: deferred` |
 
 - **Where the outbox lives:** in `<git common dir>/sdd/`, or in `.sdd/` outside git.
-- **Draining:** each `sdd tracker` command drains the outbox before and after its own work.
-- **Watching it:** `sdd tracker outbox` shows what is pending.
+- **Draining:** each `qrtx tracker` command drains the outbox before and after its own work.
+- **Watching it:** `qrtx tracker outbox` shows what is pending.
 
 ## Credentials
 
@@ -123,20 +123,20 @@ Labels such as `sdd:change/dark-mode` and `sdd:project/shop` are optional extras
 - the binding's `scopes` lists the repo or project the request is for;
 - no redirect changes the scheme, host or port.
 
-Bindings name an environment variable or a `token_command`, never a token. `token_command` gets `SDD_CRED_HOST` and `SDD_CRED_SCOPE`, so an OIDC or zero-trust broker can mint a short-lived, narrowly scoped token. Plugins written without the kit SHOULD follow the same rules. See [providers.md](providers.md#credentials).
+Bindings name an environment variable or a `token_command`, never a token. `token_command` gets `QRTX_CRED_HOST` and `QRTX_CRED_SCOPE`, so an OIDC or zero-trust broker can mint a short-lived, narrowly scoped token. Plugins written without the kit SHOULD follow the same rules. See [providers.md](providers.md#credentials).
 
-sdd sets `SDD_TRACKER_DEADLINE` (RFC 3339) in the plugin's environment: the moment sdd stops waiting. A plugin should not start a retry it cannot finish by then.
+qrtx sets `QRTX_TRACKER_DEADLINE` (RFC 3339) in the plugin's environment: the moment qrtx stops waiting. A plugin should not start a retry it cannot finish by then.
 
 ## Writing a provider with the kit
 
-Go providers use `github.com/millerscout/sdd/providers/kit`. It imports only the protocol package `github.com/millerscout/sdd/tracker` (standard library only), not the rest of sdd.
+Go providers use `github.com/millerscout/qrtx/providers/kit`. It imports only the protocol package `github.com/millerscout/qrtx/tracker` (standard library only), not the rest of qrtx.
 
 ```go
 type Provider struct{ client *kit.Client }
 
 func (p *Provider) Init(config json.RawMessage) error {
 	// decode config, then:
-	c, err := kit.NewClient(apiURL, project, "sdd-tracker-acme", kit.BearerAuth)
+	c, err := kit.NewClient(apiURL, project, "qrtx-tracker-acme", kit.BearerAuth)
 	p.client = c
 	return err
 }
@@ -151,13 +151,13 @@ What the kit provides:
 - **`kit.Client`:** maps HTTP statuses to error codes, retries a failed GET/PUT/PATCH once within the deadline, and refuses cross-host redirects.
 - **`tracker.EncodeMarker`/`DecodeMarker`:** keep `client_ref` and `sdd` links in a description when the backend has no field for them.
 
-Test with `kittest.Run(t, provider, config)` against a fake of the API. It runs the same conformance sequence as `sdd tracker check --allow-writes`. The GitHub and Jira providers in `providers/` are worked examples, with their API fakes in `providers/*/fakeapi`.
+Test with `kittest.Run(t, provider, config)` against a fake of the API. It runs the same conformance sequence as `qrtx tracker check --allow-writes`. The GitHub and Jira providers in `providers/` are worked examples, with their API fakes in `providers/*/fakeapi`.
 
 ## Checking a plugin
 
 ```bash
-sdd tracker check --backend <name>                 # read-only: capabilities, list_issues
-sdd tracker check --backend <name> --allow-writes  # also create (twice), get, update, transition, comment
+qrtx tracker check --backend <name>                 # read-only: capabilities, list_issues
+qrtx tracker check --backend <name> --allow-writes  # also create (twice), get, update, transition, comment
 ```
 
 ## Alignment with other work
@@ -167,7 +167,7 @@ sdd tracker check --backend <name> --allow-writes  # also create (twice), get, u
 
 ## Planned: Gherkin and test evidence tags
 
-A later sdd change exports scenarios as Gherkin. It will tag each scenario so that test results and screenshots can be traced back to issues:
+A later qrtx change exports scenarios as Gherkin. It will tag each scenario so that test results and screenshots can be traced back to issues:
 
 ```gherkin
 @sdd:dark-mode/S3 @req:Q1 @issue:github:123 @project:shop

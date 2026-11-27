@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 // AuthFunc sets the credential headers on a request.
@@ -40,10 +40,10 @@ type Client struct {
 	userAgent string
 }
 
-// Deadline is $SDD_TRACKER_DEADLINE (set by sdd for each plugin call), or 20s
+// Deadline is $QRTX_TRACKER_DEADLINE (set by qrtx for each plugin call), or 20s
 // from now.
 func Deadline() time.Time {
-	if v := os.Getenv("SDD_TRACKER_DEADLINE"); v != "" {
+	if v := os.Getenv("QRTX_TRACKER_DEADLINE"); v != "" {
 		if t, err := time.Parse(time.RFC3339Nano, v); err == nil {
 			return t
 		}

@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"bufio"
@@ -103,7 +103,7 @@ func mergeFields(base, ours, theirs map[string]json.RawMessage) (map[string]json
 }
 
 // MergeIssues merges three versions of sdd/issues.jsonl per issue id, for
-// `sdd tracker merge-driver`. Issues added on both sides are kept; when one
+// `qrtx tracker merge-driver`. Issues added on both sides are kept; when one
 // id holds two different client_refs, the incoming (theirs) issue gets a
 // longer id. conflict is true when both sides changed one field of one issue
 // differently, or one side deleted an issue the other edited; those issues

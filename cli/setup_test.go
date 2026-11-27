@@ -10,15 +10,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/millerscout/sdd"
-	ghfake "github.com/millerscout/sdd/providers/github/fakeapi"
-	jirafake "github.com/millerscout/sdd/providers/jira/fakeapi"
+	"github.com/millerscout/qrtx"
+	ghfake "github.com/millerscout/qrtx/providers/github/fakeapi"
+	jirafake "github.com/millerscout/qrtx/providers/jira/fakeapi"
 )
 
 func tempCreds(t *testing.T) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "sdd", "credentials.yaml")
-	t.Setenv("SDD_CREDENTIALS", p)
+	t.Setenv("QRTX_CREDENTIALS", p)
 	return p
 }
 
@@ -39,12 +39,12 @@ func pluginPath(t *testing.T, names ...string) {
 
 func TestTrackerSetup(t *testing.T) {
 	noTerminal(t)
-	pluginPath(t, "sdd-tracker-github")
+	pluginPath(t, "qrtx-tracker-github")
 	fake := ghfake.New("o/r")
 	defer fake.Close()
 	u, _ := url.Parse(fake.URL)
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	creds := tempCreds(t)
 	_ = os.WriteFile(filepath.Join(root, ".sdd.yaml"), []byte("# team\nproject: shop\n"), 0o644)
 	args := []string{"tracker", "setup", "github", "--repo", "o/r", "--api-url", fake.URL, "--token-command", "printf tok", "--yes"}
@@ -90,7 +90,7 @@ func TestTrackerSetup(t *testing.T) {
 func TestTrackerSetupNoTerminal(t *testing.T) {
 	noTerminal(t)
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	creds := tempCreds(t)
 	if _, _, err := run(t, "tracker", "setup", "github", "--token-command", "x", "--yes"); err == nil || !strings.Contains(err.Error(), "--repo") {
 		t.Fatalf("want missing --repo: %v", err)
@@ -109,7 +109,7 @@ func TestTrackerSetupDeclined(t *testing.T) {
 	promptIn = strings.NewReader("n\n")
 	promptReader = nil
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	creds := tempCreds(t)
 	t.Setenv("PATH", t.TempDir()) // no plugin, no git
 	out, _, err := run(t, "tracker", "setup", "github", "--repo", "o/r", "--token-command", "gh auth token")
@@ -127,21 +127,21 @@ func TestTrackerSetupDeclined(t *testing.T) {
 func TestTrackerSetupMissingPlugin(t *testing.T) {
 	noTerminal(t)
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	tempCreds(t)
 	t.Setenv("PATH", t.TempDir())
 	out, _, err := run(t, "tracker", "setup", "jira", "--url", "https://acme.atlassian.net", "--project", "SHOP", "--email-env", "E", "--token-env", "T", "--yes")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if !strings.Contains(out, "go install github.com/millerscout/sdd/cmd/sdd-tracker-jira@latest") {
+	if !strings.Contains(out, "go install github.com/millerscout/qrtx/cmd/qrtx-tracker-jira@latest") {
 		t.Fatalf("no install line:\n%s", out)
 	}
 }
 
 func TestTrackerInitUnchanged(t *testing.T) {
 	repo := newGitRepo(t, nil)
-	t.Setenv(sdd.EnvRepo, repo)
+	t.Setenv(qrtx.EnvRepo, repo)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	if out, _, err := run(t, "tracker", "init"); err != nil || !strings.Contains(out, "registered") {
 		t.Fatalf("%q %v", out, err)
@@ -165,7 +165,7 @@ func TestInit(t *testing.T) {
 	noTerminal(t)
 	t.Run("fresh git repo, then re-run", func(t *testing.T) {
 		repo := newGitRepo(t, nil)
-		t.Setenv(sdd.EnvRepo, repo)
+		t.Setenv(qrtx.EnvRepo, repo)
 		tempCreds(t)
 		out, _, err := run(t, "init")
 		if err != nil {
@@ -196,7 +196,7 @@ func TestInit(t *testing.T) {
 	})
 	t.Run("listed constitution, outside git, edited skill", func(t *testing.T) {
 		root := t.TempDir()
-		t.Setenv(sdd.EnvRepo, root)
+		t.Setenv(qrtx.EnvRepo, root)
 		_ = os.MkdirAll(filepath.Join(root, "docs"), 0o755)
 		_ = os.WriteFile(filepath.Join(root, "docs", "rules.md"), []byte("## Rule 1: x\n"), 0o644)
 		_ = os.WriteFile(filepath.Join(root, ".sdd.yaml"), []byte("constitution: [docs/rules.md]\n"), 0o644)
@@ -216,11 +216,11 @@ func TestInit(t *testing.T) {
 		}
 	})
 	t.Run("with tracker", func(t *testing.T) {
-		pluginPath(t, "sdd-tracker-github")
+		pluginPath(t, "qrtx-tracker-github")
 		fake := ghfake.New("o/r")
 		defer fake.Close()
 		repo := newGitRepo(t, nil)
-		t.Setenv(sdd.EnvRepo, repo)
+		t.Setenv(qrtx.EnvRepo, repo)
 		creds := tempCreds(t)
 		args := []string{"init", "--tracker", "github", "--repo", "o/r", "--api-url", fake.URL, "--token-command", "printf tok", "--yes"}
 		out, _, err := run(t, args...)
@@ -240,8 +240,8 @@ func TestInit(t *testing.T) {
 }
 
 func TestProviderBinaries(t *testing.T) {
-	sdd := sddBinary(t)
-	pluginPath(t, "sdd-tracker-github", "sdd-tracker-jira")
+	bin := qrtxBinary(t)
+	pluginPath(t, "qrtx-tracker-github", "qrtx-tracker-jira")
 	gh := ghfake.New("o/r")
 	defer gh.Close()
 	jr := jirafake.New("SHOP")
@@ -256,9 +256,9 @@ func TestProviderBinaries(t *testing.T) {
 	} {
 		root := t.TempDir()
 		_ = os.WriteFile(filepath.Join(root, ".sdd.yaml"), []byte(fmt.Sprintf("tracker:\n  backend: %s\n  config: %s\n", tc.backend, tc.config)), 0o644)
-		cmd := exec.Command(sdd, "tracker", "check", "--backend", tc.backend, "--allow-writes")
+		cmd := exec.Command(bin, "tracker", "check", "--backend", tc.backend, "--allow-writes")
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), "SDD_CHECK_RETRY_DELAY=1s", "SDD_REPO="+root, "SDD_CREDENTIALS="+creds, "T_GH=tok", "T_EMAIL=me@example.com", "T_JIRA=tok", "PATH="+os.Getenv("PATH"))
+		cmd.Env = append(os.Environ(), "QRTX_CHECK_RETRY_DELAY=1s", "QRTX_REPO="+root, "QRTX_CREDENTIALS="+creds, "T_GH=tok", "T_EMAIL=me@example.com", "T_JIRA=tok", "PATH="+os.Getenv("PATH"))
 		out, err := cmd.CombinedOutput()
 		if err != nil || strings.Contains(string(out), "FAIL") {
 			t.Fatalf("%s: %v\n%s", tc.backend, err, out)

@@ -1,5 +1,5 @@
-// Package github is the sdd tracker provider for GitHub Issues (REST API).
-// It is served as the sdd-tracker-github plugin.
+// Package github is the qrtx tracker provider for GitHub Issues (REST API).
+// It is served as the qrtx-tracker-github plugin.
 package github
 
 import (
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/millerscout/sdd/providers/kit"
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/providers/kit"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 // Config is .sdd.yaml tracker.config for backend github.
@@ -55,7 +55,7 @@ func (p *Provider) Init(raw json.RawMessage) error {
 	if c.StartedLabel == "" {
 		c.StartedLabel = "in progress"
 	}
-	client, err := kit.NewClient(c.APIURL, c.Repo, "sdd-tracker-github", kit.BearerAuth)
+	client, err := kit.NewClient(c.APIURL, c.Repo, "qrtx-tracker-github", kit.BearerAuth)
 	if err != nil {
 		return err
 	}

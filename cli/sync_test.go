@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/millerscout/sdd"
+	"github.com/millerscout/qrtx"
 )
 
 func withHookStdin(t *testing.T, body string) {
@@ -23,13 +23,13 @@ func withHookStdin(t *testing.T, body string) {
 
 func TestSyncHeartbeatCLI(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	withHookStdin(t, `{"session_id":"abc","cwd":"`+root+`","hook_event_name":"UserPromptSubmit"}`)
 	if out, _, err := run(t, "sync", "heartbeat", "--hook"); err != nil || !strings.Contains(out, "abc: lease until") {
 		t.Fatalf("%q %v", out, err)
 	}
 	out, _, _ := run(t, "sync", "status", "--json")
-	var st sdd.SyncStatus
+	var st qrtx.SyncStatus
 	if err := json.Unmarshal([]byte(out), &st); err != nil || len(st.Sessions) != 1 || st.Sessions[0].ID != "abc" || !st.Sessions[0].Live {
 		t.Fatalf("status %s %v", out, err)
 	}
@@ -38,7 +38,7 @@ func TestSyncHeartbeatCLI(t *testing.T) {
 	}
 	// An unwritable state dir warns and still exits 0.
 	r2 := t.TempDir()
-	t.Setenv(sdd.EnvRepo, r2)
+	t.Setenv(qrtx.EnvRepo, r2)
 	_ = os.MkdirAll(filepath.Join(r2, ".sdd"), 0o755)
 	_ = os.Chmod(filepath.Join(r2, ".sdd"), 0o500)
 	defer os.Chmod(filepath.Join(r2, ".sdd"), 0o755)
@@ -50,7 +50,7 @@ func TestSyncHeartbeatCLI(t *testing.T) {
 
 func TestSyncClaimCLI(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	if out, _, err := run(t, "sync", "claim", "demo/1.1", "--session", "A"); err != nil || !strings.Contains(out, "sync not enabled; claim skipped") {
 		t.Fatalf("%q %v", out, err)
 	}
@@ -69,7 +69,7 @@ func TestSyncClaimCLI(t *testing.T) {
 
 func TestSyncInboxCLI(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	run(t, "sync", "heartbeat", "--session", "A")
 	run(t, "sync", "heartbeat", "--session", "B")
 	for i := 0; i < 25; i++ {
@@ -92,7 +92,7 @@ func TestSyncInboxCLI(t *testing.T) {
 
 func TestSyncWatch(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	run(t, "sync", "heartbeat", "--session", "A")
 	run(t, "sync", "claim", "old/1", "--session", "A")
 	watchStop = make(chan struct{})
@@ -135,7 +135,7 @@ func (l *lockedBuf) String() string {
 
 func TestHooksCLI(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	if out, _, err := run(t, "skills", "install", "--hooks"); err != nil || !strings.Contains(out, "updated "+filepath.Join(root, ".claude", "settings.local.json")) {
 		t.Fatalf("%q %v", out, err)
 	}

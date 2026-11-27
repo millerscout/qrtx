@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"encoding/json"
@@ -308,7 +308,7 @@ func TestTrackerOutbox(t *testing.T) {
 		readyChange(t, root, "demo", nil, "only one")
 		setFakeMode(t, dir, "block")
 		cmd := exec.Command("sdd-child")
-		cmd.Env = append(os.Environ(), EnvRepo+"="+root, "SDD_CHILD_SLUG=demo")
+		cmd.Env = append(os.Environ(), EnvRepo+"="+root, "QRTX_CHILD_SLUG=demo")
 		if err := cmd.Start(); err != nil {
 			t.Fatal(err)
 		}

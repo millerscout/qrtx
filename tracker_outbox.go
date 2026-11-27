@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"bufio"

@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/millerscout/sdd"
-	"github.com/millerscout/sdd/providers/kit"
-	"github.com/millerscout/sdd/skills"
+	"github.com/millerscout/qrtx"
+	"github.com/millerscout/qrtx/providers/kit"
+	"github.com/millerscout/qrtx/skills"
 )
 
 // Prompting reads from promptIn, and only when isTerminal reports a terminal.
@@ -65,7 +65,7 @@ func hostOf(raw string) (string, error) {
 }
 
 // trackerSetup writes the tracker block, binds credentials and runs a
-// read-only check. It prints its steps and returns them for `sdd init`.
+// read-only check. It prints its steps and returns them for `qrtx init`.
 func trackerSetup(root string, args []string, stdout io.Writer) ([]step, error) {
 	pos := positionals(args)
 	backend := ""
@@ -129,16 +129,16 @@ func trackerSetup(root string, args []string, stdout io.Writer) ([]step, error) 
 	case "":
 		return nil, fmt.Errorf("tracker setup: name a backend (github or jira)")
 	default:
-		return nil, fmt.Errorf("tracker setup: %q is not supported here; set tracker.backend in %s by hand (see docs/providers.md)", backend, sdd.RepoConfigFile)
+		return nil, fmt.Errorf("tracker setup: %q is not supported here; set tracker.backend in %s by hand (see docs/providers.md)", backend, qrtx.RepoConfigFile)
 	}
 	bind.Scopes = []string{scope}
 	var steps []step
 
-	changed, err := sdd.SetTrackerConfig(root, sdd.TrackerConfig{Backend: backend, Config: cfg})
+	changed, err := qrtx.SetTrackerConfig(root, qrtx.TrackerConfig{Backend: backend, Config: cfg})
 	if err != nil {
 		return steps, err
 	}
-	steps = append(steps, step{actionOf(changed), sdd.RepoConfigFile + " tracker block (" + backend + ")"})
+	steps = append(steps, step{actionOf(changed), qrtx.RepoConfigFile + " tracker block (" + backend + ")"})
 
 	path, err := kit.CredentialsPath()
 	if err != nil {
@@ -170,13 +170,13 @@ func trackerSetup(root string, args []string, stdout io.Writer) ([]step, error) 
 		steps = append(steps, step{"updated", fmt.Sprintf("%s binding for %s (%s)", path, host, scope)})
 	}
 
-	bin := "sdd-tracker-" + backend
+	bin := "qrtx-tracker-" + backend
 	if _, err := exec.LookPath(bin); err != nil {
-		steps = append(steps, step{"skipped", "check: " + bin + " is not on PATH; install it with: go install github.com/millerscout/sdd/cmd/" + bin + "@latest"})
+		steps = append(steps, step{"skipped", "check: " + bin + " is not on PATH; install it with: go install github.com/millerscout/qrtx/cmd/" + bin + "@latest"})
 		printSteps(stdout, steps)
 		return steps, nil
 	}
-	results, err := sdd.CheckTracker(root, "", false)
+	results, err := qrtx.CheckTracker(root, "", false)
 	if err != nil {
 		printSteps(stdout, steps)
 		return steps, err
@@ -240,7 +240,7 @@ func inGit(root string) bool {
 // runInit sets up a repository or folder: skills, constitution, the
 // issues.jsonl merge driver and, with --tracker, the tracker.
 func runInit(args []string, stdout, stderr io.Writer) error {
-	root, err := sdd.RepoRoot()
+	root, err := qrtx.RepoRoot()
 	if err != nil {
 		return err
 	}
@@ -253,20 +253,20 @@ func runInit(args []string, stdout, stderr io.Writer) error {
 		for _, r := range res {
 			what := "skill " + r.Name
 			if r.Action == "skipped" {
-				what += " (local edits; use " + sdd.CLIName + " skills install --force)"
+				what += " (local edits; use " + qrtx.CLIName + " skills install --force)"
 			}
 			steps = append(steps, step{r.Action, what})
 		}
 	}
 	if !hasFlag(args, "--no-constitution") {
-		files, err := sdd.ConstitutionFiles(root)
+		files, err := qrtx.ConstitutionFiles(root)
 		if err != nil {
 			return err
 		}
 		if len(files) > 0 {
 			steps = append(steps, step{"unchanged", "constitution (" + strings.Join(files, ", ") + ")"})
 		} else {
-			path, err := sdd.InitConstitution(root, false)
+			path, err := qrtx.InitConstitution(root, false)
 			if err != nil {
 				return err
 			}

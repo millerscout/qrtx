@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/millerscout/sdd"
+	"github.com/millerscout/qrtx"
 )
 
 var (
@@ -27,7 +27,7 @@ func buildBin(t *testing.T, name string) string {
 		return p
 	}
 	if binDir == "" {
-		dir, err := os.MkdirTemp("", "sdd-bin-")
+		dir, err := os.MkdirTemp("", "qrtx-bin-")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -41,14 +41,14 @@ func buildBin(t *testing.T, name string) string {
 	return p
 }
 
-// sddBinary builds cmd/sdd so git can run it as the merge driver.
-func sddBinary(t *testing.T) string { return buildBin(t, "sdd") }
+// qrtxBinary builds cmd/qrtx so git can run it as the merge driver.
+func qrtxBinary(t *testing.T) string { return buildBin(t, "qrtx") }
 
 func gitEnv(repo string) []string {
 	return append(os.Environ(),
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.com",
-		"GIT_CONFIG_NOSYSTEM=1", sdd.EnvRepo+"="+repo)
+		"GIT_CONFIG_NOSYSTEM=1", qrtx.EnvRepo+"="+repo)
 }
 
 func gitRun(t *testing.T, repo string, args ...string) (string, error) {
@@ -69,14 +69,14 @@ func mustGit(t *testing.T, repo string, args ...string) string {
 	return out
 }
 
-func sddRun(t *testing.T, repo string, args ...string) string {
+func qrtxRun(t *testing.T, repo string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command(sddBinary(t), args...)
+	cmd := exec.Command(qrtxBinary(t), args...)
 	cmd.Dir = repo
 	cmd.Env = gitEnv(repo)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("sdd %v: %v\n%s", args, err, out)
+		t.Fatalf("qrtx %v: %v\n%s", args, err, out)
 	}
 	return string(out)
 }
@@ -129,7 +129,7 @@ func TestTrackerMerge(t *testing.T) {
 	x := line("sdd-mmmmmm", "X", `"client_ref":"x0",`)
 	t.Run("same title on two branches", func(t *testing.T) {
 		repo := newGitRepo(t, []string{x})
-		out := sddRun(t, repo, "tracker", "init")
+		out := qrtxRun(t, repo, "tracker", "init")
 		if !strings.Contains(out, "registered merge driver") {
 			t.Fatal(out)
 		}
@@ -139,10 +139,10 @@ func TestTrackerMerge(t *testing.T) {
 		mustGit(t, repo, "add", "-A")
 		mustGit(t, repo, "commit", "-q", "-m", "init")
 		mustGit(t, repo, "checkout", "-q", "-b", "a")
-		sddRun(t, repo, "tracker", "add", "Same title")
+		qrtxRun(t, repo, "tracker", "add", "Same title")
 		mustGit(t, repo, "commit", "-q", "-am", "a")
 		mustGit(t, repo, "checkout", "-q", "main")
-		sddRun(t, repo, "tracker", "add", "Same title")
+		qrtxRun(t, repo, "tracker", "add", "Same title")
 		mustGit(t, repo, "commit", "-q", "-am", "main")
 		if out, err := gitRun(t, repo, "merge", "-q", "--no-edit", "a"); err != nil {
 			t.Fatalf("merge: %v\n%s", err, out)
@@ -154,7 +154,7 @@ func TestTrackerMerge(t *testing.T) {
 	})
 	t.Run("same short id, different client_ref", func(t *testing.T) {
 		repo := newGitRepo(t, []string{x})
-		sddRun(t, repo, "tracker", "init")
+		qrtxRun(t, repo, "tracker", "init")
 		mustGit(t, repo, "add", "-A")
 		mustGit(t, repo, "commit", "-q", "-m", "init")
 		branchEdit(t, repo, "a", []string{x, line("sdd-zzzzzz", "from a", `"client_ref":"ra",`)})
@@ -169,7 +169,7 @@ func TestTrackerMerge(t *testing.T) {
 		}
 		long := 0
 		for _, l := range lines {
-			var is sdd.Issue
+			var is qrtx.Issue
 			if err := json.Unmarshal([]byte(l), &is); err != nil {
 				t.Fatal(err)
 			}
@@ -183,7 +183,7 @@ func TestTrackerMerge(t *testing.T) {
 	})
 	t.Run("different fields merge, same field conflicts", func(t *testing.T) {
 		repo := newGitRepo(t, []string{x})
-		sddRun(t, repo, "tracker", "init")
+		qrtxRun(t, repo, "tracker", "init")
 		mustGit(t, repo, "add", "-A")
 		mustGit(t, repo, "commit", "-q", "-m", "init")
 		branchEdit(t, repo, "title", []string{line("sdd-mmmmmm", "X renamed", `"client_ref":"x0",`)})
@@ -224,7 +224,7 @@ func TestTrackerMerge(t *testing.T) {
 
 func TestTrackerCLI(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	out, _, err := run(t, "tracker", "add", "Dark-mode toggle", "--description", "Settings page")
 	if err != nil || !strings.HasPrefix(out, "added file:sdd-") {
 		t.Fatalf("add: %q %v", out, err)
@@ -234,7 +234,7 @@ func TestTrackerCLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var list []sdd.Issue
+	var list []qrtx.Issue
 	if err := json.Unmarshal([]byte(out), &list); err != nil || len(list) != 1 || list[0].Title != "Dark-mode toggle" {
 		t.Fatalf("list: %s %v", out, err)
 	}
@@ -260,7 +260,7 @@ func TestTrackerCLI(t *testing.T) {
 
 func TestTrackerCheck(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	if _, _, err := run(t, "tracker", "add", "keep me"); err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestTrackerCheckExec(t *testing.T) {
 		t.Skip("needs sh")
 	}
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	bin := t.TempDir()
 	logf := filepath.Join(bin, "log")
 	script := `#!/bin/sh
@@ -297,7 +297,7 @@ list_issues) echo '{"result":{"issues":[]}}' ;;
 *) echo '{"error":{"code":"unsupported","message":"read-only fake"}}'; exit 1 ;;
 esac
 `
-	if err := os.WriteFile(filepath.Join(bin, "sdd-tracker-shfake"), []byte(script), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(bin, "qrtx-tracker-shfake"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -317,7 +317,7 @@ func TestTrackerArchiveCLIReportsPending(t *testing.T) {
 		t.Skip("needs sh")
 	}
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	bin := t.TempDir()
 	script := `#!/bin/sh
 cat >/dev/null
@@ -326,10 +326,10 @@ capabilities) echo '{"result":{"protocols":["sdd.adapter/v1"],"ops":["capabiliti
 *) echo '{"error":{"code":"unavailable","message":"down"}}'; exit 1 ;;
 esac
 `
-	_ = os.WriteFile(filepath.Join(bin, "sdd-tracker-down"), []byte(script), 0o755)
+	_ = os.WriteFile(filepath.Join(bin, "qrtx-tracker-down"), []byte(script), 0o755)
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	_ = os.WriteFile(filepath.Join(root, ".sdd.yaml"), []byte("tracker:\n  backend: down\n"), 0o644)
-	if err := sdd.NewChange(root, "demo"); err != nil {
+	if err := qrtx.NewChange(root, "demo"); err != nil {
 		t.Fatal(err)
 	}
 	p := filepath.Join(root, "sdd", "changes", "demo", "change.sdd.md")
@@ -337,7 +337,7 @@ esac
 	text := string(raw)
 	text = strings.Replace(text, "(TBD — what the user wanted to accomplish or experience, from the conversation arc.)", "Ship demo.", 1)
 	text = strings.Replace(text, "- (TBD — user-visible checks that satisfy the requester.)", "- demo works.", 1)
-	text = sdd.RemovePlaceholderSpecSections(text)
+	text = qrtx.RemovePlaceholderSpecSections(text)
 	text = strings.Replace(text, "- [ ] 1.1 First implementation task", "- [x] 1.1 Do it", 1)
 	text = strings.Replace(text, "- [ ] V1.1 (TBD — e.g. go test ./… -run Test…)", "- [x] V1.1 manual: done", 1)
 	text = strings.Replace(text, "- [ ] V1.2 (optional) golden row in scripts/fixtures/ if behavior is user-visible", "- [x] V1.2 manual: n/a", 1)

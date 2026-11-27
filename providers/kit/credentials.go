@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/tracker"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,27 +32,39 @@ type Creds struct {
 	Email string
 }
 
-// CredentialsPath is $SDD_CREDENTIALS, else <user config dir>/sdd/credentials.yaml
-// ($XDG_CONFIG_HOME or ~/.config on Unix, %AppData% on Windows).
+// CredentialsPath is $QRTX_CREDENTIALS, else <user config dir>/qrtx/credentials.yaml
+// ($XDG_CONFIG_HOME or ~/.config on Unix, %AppData% on Windows). When that
+// file is missing but one exists under the tool's old name (<dir>/sdd/), the
+// old file is used, so credentials bound before the rename keep working.
 func CredentialsPath() (string, error) {
-	if p := strings.TrimSpace(os.Getenv("SDD_CREDENTIALS")); p != "" {
+	if p := strings.TrimSpace(os.Getenv("QRTX_CREDENTIALS")); p != "" {
 		return p, nil
 	}
-	if runtime.GOOS == "windows" {
-		dir, err := os.UserConfigDir()
+	var dir string
+	switch x := os.Getenv("XDG_CONFIG_HOME"); {
+	case runtime.GOOS == "windows":
+		d, err := os.UserConfigDir()
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(dir, "sdd", "credentials.yaml"), nil
+		dir = d
+	case x != "":
+		dir = x
+	default:
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		dir = filepath.Join(home, ".config")
 	}
-	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		return filepath.Join(x, "sdd", "credentials.yaml"), nil
+	path := filepath.Join(dir, "qrtx", "credentials.yaml")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		legacy := filepath.Join(dir, "sdd", "credentials.yaml")
+		if _, err := os.Stat(legacy); err == nil {
+			return legacy, nil
+		}
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".config", "sdd", "credentials.yaml"), nil
+	return path, nil
 }
 
 var bindingKeys = map[string]bool{"token_env": true, "email_env": true, "token_command": true, "scopes": true}
@@ -122,7 +134,7 @@ func Credentials(hostport, scope string) (Creds, error) {
 	host := strings.ToLower(hostport)
 	b, ok := binds[host]
 	if !ok {
-		return Creds{}, authErr("host %s is not bound in %s; run `sdd tracker setup` or add hosts.%s there", host, path, host)
+		return Creds{}, authErr("host %s is not bound in %s; run `qrtx tracker setup` or add hosts.%s there", host, path, host)
 	}
 	if !scopeAllowed(b, scope) {
 		return Creds{}, authErr("%s is not in the scopes bound to host %s in %s", scope, host, path)
@@ -161,7 +173,7 @@ func runTokenCommand(command, host, scope string) (string, error) {
 	} else {
 		cmd = exec.CommandContext(ctx, "sh", "-c", command)
 	}
-	cmd.Env = append(os.Environ(), "SDD_CRED_HOST="+host, "SDD_CRED_SCOPE="+scope)
+	cmd.Env = append(os.Environ(), "QRTX_CRED_HOST="+host, "QRTX_CRED_SCOPE="+scope)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	if err := cmd.Run(); err != nil {
@@ -211,7 +223,7 @@ func BindHost(path, host string, b Binding) (bool, error) {
 	}
 	sort.Strings(hosts)
 	var buf bytes.Buffer
-	buf.WriteString("# sdd tracker credentials: where each host's token comes from, never the token.\n# Written by `sdd tracker setup`; see docs/providers.md.\nhosts:\n")
+	buf.WriteString("# qrtx tracker credentials: where each host's token comes from, never the token.\n# Written by `qrtx tracker setup`; see docs/providers.md.\nhosts:\n")
 	for _, h := range hosts {
 		one, _ := yaml.Marshal(map[string]Binding{h: binds[h]})
 		for _, line := range strings.Split(strings.TrimRight(string(one), "\n"), "\n") {

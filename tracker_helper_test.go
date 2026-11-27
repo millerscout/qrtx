@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"encoding/json"
@@ -13,11 +13,11 @@ import (
 
 // The test binary doubles as two helpers, chosen by the name it runs under:
 //
-//	sdd-tracker-fake  a tracker plugin whose behaviour comes from files
-//	sdd-child         an sdd process the outbox tests can kill
+//	qrtx-tracker-fake  a tracker plugin whose behaviour comes from files
+//	sdd-child         a qrtx process the outbox tests can kill
 func runTestHelper() bool {
 	switch filepath.Base(os.Args[0]) {
-	case "sdd-tracker-fake":
+	case "qrtx-tracker-fake":
 		os.Exit(fakeTrackerMain())
 	case "sdd-child":
 		os.Exit(childMain())
@@ -30,7 +30,7 @@ type fakeState struct {
 	Comments map[string]int `json:"comments"`
 }
 
-func fakeDir() string { return os.Getenv("SDD_FAKE_DIR") }
+func fakeDir() string { return os.Getenv("QRTX_FAKE_DIR") }
 
 func fakeMode() string {
 	b, _ := os.ReadFile(filepath.Join(fakeDir(), "mode"))
@@ -72,7 +72,7 @@ func fakeTrackerMain() int {
 	fmt.Fprintln(f, req.Op)
 	f.Close()
 	mode := fakeMode()
-	_ = os.WriteFile(filepath.Join(fakeDir(), "deadline"), []byte(os.Getenv("SDD_TRACKER_DEADLINE")), 0o644)
+	_ = os.WriteFile(filepath.Join(fakeDir(), "deadline"), []byte(os.Getenv("QRTX_TRACKER_DEADLINE")), 0o644)
 	switch mode {
 	case "down":
 		return fakeReply(nil, ErrCodeUnavailable)
@@ -85,7 +85,7 @@ func fakeTrackerMain() int {
 		time.Sleep(10 * time.Second)
 	case "stall":
 		// A plugin whose request hangs until its own deadline, then reports.
-		if d, err := time.Parse(time.RFC3339Nano, os.Getenv("SDD_TRACKER_DEADLINE")); err == nil {
+		if d, err := time.Parse(time.RFC3339Nano, os.Getenv("QRTX_TRACKER_DEADLINE")); err == nil {
 			time.Sleep(time.Until(d))
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"error": map[string]any{"code": ErrCodeUnavailable, "message": "GET /issues: context deadline exceeded"}})
@@ -179,7 +179,7 @@ func childMain() int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	if _, err := QueueDeferredIssues(root, t, os.Getenv("SDD_CHILD_SLUG")); err != nil {
+	if _, err := QueueDeferredIssues(root, t, os.Getenv("QRTX_CHILD_SLUG")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
@@ -210,8 +210,8 @@ func fakeRepo(t *testing.T, extraYAML string) (root, dir string) {
 	t.Helper()
 	root = t.TempDir()
 	dir = t.TempDir()
-	t.Setenv("SDD_FAKE_DIR", dir)
-	installHelper(t, "sdd-tracker-fake", "sdd-child")
+	t.Setenv("QRTX_FAKE_DIR", dir)
+	installHelper(t, "qrtx-tracker-fake", "sdd-child")
 	if err := os.WriteFile(filepath.Join(root, RepoConfigFile), []byte("tracker:\n  backend: fake\n  timeout: 2\n"+extraYAML), 0o644); err != nil {
 		t.Fatal(err)
 	}

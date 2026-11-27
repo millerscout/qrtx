@@ -1,5 +1,5 @@
-// Package jira is the sdd tracker provider for Jira Cloud (REST API v3).
-// It is served as the sdd-tracker-jira plugin.
+// Package jira is the qrtx tracker provider for Jira Cloud (REST API v3).
+// It is served as the qrtx-tracker-jira plugin.
 package jira
 
 import (
@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/millerscout/sdd/providers/kit"
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/providers/kit"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 // Config is .sdd.yaml tracker.config for backend jira.
@@ -56,7 +56,7 @@ func (p *Provider) Init(raw json.RawMessage) error {
 	if len(c.CanceledResolutions) == 0 {
 		c.CanceledResolutions = []string{"Won't Do", "Won't Fix", "Duplicate", "Declined", "Cannot Reproduce"}
 	}
-	client, err := kit.NewClient(c.URL, c.Project, "sdd-tracker-jira", kit.BasicAuth)
+	client, err := kit.NewClient(c.URL, c.Project, "qrtx-tracker-jira", kit.BasicAuth)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ type sddProp struct {
 	Refs []tracker.SDDRef `json:"sdd"`
 }
 
-// categoryOf maps a Jira status category key to an sdd category. The keys
+// categoryOf maps a Jira status category key to a qrtx category. The keys
 // are new/indeterminate/done; Atlassian's examples also show to-do,
 // in-flight and completed, so those are accepted too.
 func categoryOf(key string) string {

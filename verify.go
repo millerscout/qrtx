@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"fmt"
@@ -98,7 +98,7 @@ func VerifyAST(w io.Writer, repoRoot string, packages []string) error {
 		return err
 	}
 	if len(issues) == 0 {
-		_, _ = fmt.Fprintf(w, "sdd verify-ast: OK (%d packages)\n", len(packages))
+		_, _ = fmt.Fprintf(w, "qrtx verify-ast: OK (%d packages)\n", len(packages))
 		return nil
 	}
 	for _, iss := range issues {
@@ -111,7 +111,7 @@ func VerifyAST(w io.Writer, repoRoot string, packages []string) error {
 var rootMarkers = []string{RepoConfigFile, "go.mod", ".git"}
 
 // RepoRoot is the project whose sdd/changes git should track.
-// $SDD_REPO (or another name in RepoEnv) overrides it. Otherwise the nearest
+// $QRTX_REPO (or another name in RepoEnv) overrides it. Otherwise the nearest
 // directory with .sdd.yaml, go.mod or .git wins, and the working directory
 // is used when there is none.
 func RepoRoot() (string, error) {

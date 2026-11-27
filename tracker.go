@@ -1,6 +1,6 @@
-package sdd
+package qrtx
 
-import "github.com/millerscout/sdd/tracker"
+import "github.com/millerscout/qrtx/tracker"
 
 // The tracker protocol lives in package tracker (standard library only, so
 // provider plugins can import it). These aliases keep the root API.

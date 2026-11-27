@@ -13,7 +13,7 @@ type CheckResult struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-// Conformance runs the sdd tracker conformance sequence against impl. Without
+// Conformance runs the qrtx tracker conformance sequence against impl. Without
 // allowWrites it only reads (capabilities, list_issues). With it, it creates
 // an issue twice with one client_ref, then gets, updates, transitions, lists,
 // comments (when declared) and finally cancels it.
@@ -22,7 +22,7 @@ func Conformance(impl IssueTracker, allowWrites bool) []CheckResult {
 }
 
 // ConformanceWith is Conformance with a wait before the retried create, the
-// way a real retry from sdd's outbox comes on a later command. Hosted
+// way a real retry from qrtx's outbox comes on a later command. Hosted
 // trackers whose lists lag behind a new issue need it.
 func ConformanceWith(impl IssueTracker, allowWrites bool, retryDelay time.Duration) []CheckResult {
 	var out []CheckResult
@@ -45,8 +45,8 @@ func ConformanceWith(impl IssueTracker, allowWrites bool, retryDelay time.Durati
 	if !allowWrites || !caps.Has(OpCreateIssue) {
 		return out
 	}
-	ref := NewClientRef("sdd-check", "", "sdd tracker check", NewNonce())
-	in := CreateIssueInput{Title: "sdd tracker check " + time.Now().UTC().Format(time.RFC3339), Description: "Created by `sdd tracker check`; safe to delete.", ClientRef: ref}
+	ref := NewClientRef("sdd-check", "", "qrtx tracker check", NewNonce())
+	in := CreateIssueInput{Title: "qrtx tracker check " + time.Now().UTC().Format(time.RFC3339), Description: "Created by `qrtx tracker check`; safe to delete.", ClientRef: ref}
 	first, err := impl.CreateIssue(in)
 	if !record(OpCreateIssue, err, first.ID) {
 		return out
@@ -93,7 +93,7 @@ func ConformanceWith(impl IssueTracker, allowWrites bool, retryDelay time.Durati
 		record(OpListIssues+" (after create)", err, "")
 	}
 	if caps.Has(OpComment) {
-		record(OpComment, impl.Comment(first.ID, "sdd tracker check", NewNonce()), "")
+		record(OpComment, impl.Comment(first.ID, "qrtx tracker check", NewNonce()), "")
 	}
 	if caps.Has(OpTransitionIssue) {
 		_, err := impl.TransitionIssue(first.ID, CategoryCanceled, "")

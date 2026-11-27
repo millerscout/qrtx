@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"errors"
@@ -215,7 +215,7 @@ func writeConstitution(w io.Writer, docs []ConstitutionDoc) {
 // is one rule.
 const constitutionTemplate = `# Constitution
 
-The rules every change in this project follows. ` + "`sdd change finish-propose`" + ` requires each
+The rules every change in this project follows. ` + "`qrtx change finish-propose`" + ` requires each
 plan to say, under ` + "`## Constitution`" + `, how it complies with each rule it touches,
 citing the rule by its heading (or the part before a colon, such as "Rule 1").
 

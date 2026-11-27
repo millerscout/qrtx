@@ -1,4 +1,4 @@
-// Package kittest runs the sdd tracker conformance checks against a kit
+// Package kittest runs the qrtx tracker conformance checks against a kit
 // provider in-process, with writes on.
 package kittest
 
@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/millerscout/sdd/providers/kit"
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/providers/kit"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 // Run initialises p with config and fails t for every conformance op that

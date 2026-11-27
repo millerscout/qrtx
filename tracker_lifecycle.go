@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"fmt"
@@ -227,7 +227,7 @@ func QueueDeferredIssues(repoRoot string, t *Tracker, slug string) (int, error) 
 		}
 		in := CreateIssueInput{
 			Title:       title,
-			Description: b + "\n\nDeferred from sdd change `" + slug + "`.",
+			Description: b + "\n\nDeferred from qrtx change `" + slug + "`.",
 			Category:    CategoryBacklog,
 			Refs:        []SDDRef{{Repo: repo, Project: t.Project(), Change: slug, Role: "deferred"}},
 			ClientRef:   cref,
@@ -276,7 +276,7 @@ func queueArchiveTracker(repoRoot, slug string, man *ChangeManifest, archivedAs 
 		ref := normalizeRef(r, s.Backend)
 		backend, id := ParseIssueRef(ref, s.Backend)
 		if s.Comments != "off" {
-			msg := fmt.Sprintf("sdd change `%s` was archived in %s as `%s`.", slug, repo, archivedAs)
+			msg := fmt.Sprintf("qrtx change `%s` was archived in %s as `%s`.", slug, repo, archivedAs)
 			if s.Comments == "summary" && requirements > 0 {
 				msg += fmt.Sprintf(" It promised %d requirement(s); see its Scenarios for what was tested.", requirements)
 			}

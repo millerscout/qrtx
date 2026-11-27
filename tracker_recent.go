@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ func readRecentCreates(path string, now time.Time) []recentCreate {
 	return live
 }
 
-// RecordCreated remembers an issue sdd just created, so the next list shows
+// RecordCreated remembers an issue qrtx just created, so the next list shows
 // it even before the provider's list does. It is best effort.
 func RecordCreated(repoRoot, backend string, is Issue) {
 	dir, err := ensureTrackerStateDir(repoRoot)

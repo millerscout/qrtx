@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// execTracker runs sdd-tracker-<name> from PATH, one process per operation.
+// execTracker runs qrtx-tracker-<name> from PATH, one process per operation.
 type execTracker struct {
 	name    string
 	config  json.RawMessage
@@ -40,7 +40,7 @@ func newExecTracker(name string, config map[string]any, timeout time.Duration) (
 	return &execTracker{name: name, config: raw, timeout: timeout, stderr: os.Stderr}, nil
 }
 
-func (e *execTracker) bin() string { return "sdd-tracker-" + e.name }
+func (e *execTracker) bin() string { return "qrtx-tracker-" + e.name }
 
 // TrackerCallError names the backend and operation of a failed call. It
 // wraps an *AdapterError when the plugin (or the transport) reported one.
@@ -82,7 +82,7 @@ func (e *execTracker) run(op string, args any) (json.RawMessage, error) {
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = e.stderr
-	cmd.Env = append(os.Environ(), "SDD_TRACKER_DEADLINE="+time.Now().Add(pluginDeadline(e.timeout)).UTC().Format(time.RFC3339Nano))
+	cmd.Env = append(os.Environ(), "QRTX_TRACKER_DEADLINE="+time.Now().Add(pluginDeadline(e.timeout)).UTC().Format(time.RFC3339Nano))
 	cmd.WaitDelay = time.Second
 	runErr := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
@@ -150,7 +150,7 @@ func (e *execTracker) Capabilities() (TrackerCaps, error) {
 	}
 	if !containsString(caps.Protocols, AdapterProtocol) {
 		return TrackerCaps{}, e.fail(OpCapabilities, &AdapterError{Code: ErrCodeUnsupported,
-			Message: fmt.Sprintf("plugin speaks %v, sdd speaks [%s]; no shared protocol version", caps.Protocols, AdapterProtocol)})
+			Message: fmt.Sprintf("plugin speaks %v, qrtx speaks [%s]; no shared protocol version", caps.Protocols, AdapterProtocol)})
 	}
 	e.caps = &caps
 	return caps, nil
@@ -255,7 +255,7 @@ func adapterCode(err error) string {
 	return ""
 }
 
-// pluginDeadline is the deadline handed to the plugin: a margin before sdd
+// pluginDeadline is the deadline handed to the plugin: a margin before qrtx
 // kills it, so a stalled request is reported by the plugin with what it was
 // doing instead of an opaque "timed out" from sdd.
 func pluginDeadline(timeout time.Duration) time.Duration {

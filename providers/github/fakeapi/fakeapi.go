@@ -1,5 +1,5 @@
 // Package fakeapi is an in-memory fake of the GitHub REST endpoints that
-// sdd-tracker-github uses, for tests.
+// qrtx-tracker-github uses, for tests.
 package fakeapi
 
 import (

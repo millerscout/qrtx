@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Atlassian Document Format: just the parts sdd writes. Paragraphs are split
+// Atlassian Document Format: just the parts qrtx writes. Paragraphs are split
 // on blank lines, single newlines become hard breaks, `code` becomes a code
 // mark and [text](url) becomes a link mark.
 
@@ -46,7 +46,7 @@ func inline(line string) []adfNode {
 	return out
 }
 
-// MarkdownToADF converts sdd's plain Markdown to an ADF document.
+// MarkdownToADF converts qrtx's plain Markdown to an ADF document.
 func MarkdownToADF(md string) json.RawMessage {
 	doc := adfNode{Type: "doc", Version: 1, Content: []adfNode{}}
 	md = strings.ReplaceAll(strings.TrimSpace(md), "\r\n", "\n")
@@ -66,7 +66,7 @@ func MarkdownToADF(md string) json.RawMessage {
 	return b
 }
 
-// ADFToMarkdown renders an ADF document back to sdd's Markdown. Unknown node
+// ADFToMarkdown renders an ADF document back to qrtx's Markdown. Unknown node
 // types contribute their text content.
 func ADFToMarkdown(raw json.RawMessage) string {
 	if len(raw) == 0 || string(raw) == "null" {

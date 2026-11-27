@@ -31,6 +31,6 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
       - name: example plan verifies
-        run: go run ./cmd/sdd change verify --change tic-tac-toe
+        run: go run ./cmd/qrtx change verify --change tic-tac-toe
         env:
-          SDD_REPO: examples/tic-tac-toe
+          QRTX_REPO: examples/tic-tac-toe

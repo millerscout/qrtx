@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 // Provider is a tracker backend served by the kit. It is IssueTracker with a
@@ -26,7 +26,7 @@ func Tracker(p Provider) map[string]Handler {
 	return map[string]Handler{"tracker": TrackerHandler(p)}
 }
 
-// TrackerHandler maps tracker ops, in the argument shapes sdd sends, to p.
+// TrackerHandler maps tracker ops, in the argument shapes qrtx sends, to p.
 func TrackerHandler(p Provider) Handler {
 	return HandlerFunc(func(op string, config, args json.RawMessage) (any, error) {
 		if err := p.Init(config); err != nil {

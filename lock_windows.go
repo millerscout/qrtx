@@ -1,6 +1,6 @@
 //go:build windows
 
-package sdd
+package qrtx
 
 import (
 	"crypto/rand"
@@ -69,7 +69,7 @@ func lockFile(path string) (func(), error) {
 			return releaser(path, owner), nil
 		}
 		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("lock %s is held by another sdd process", path)
+			return nil, fmt.Errorf("lock %s is held by another qrtx process", path)
 		}
 		time.Sleep(50 * time.Millisecond)
 	}

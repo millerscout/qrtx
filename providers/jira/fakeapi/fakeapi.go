@@ -1,5 +1,5 @@
 // Package fakeapi is an in-memory fake of the Jira Cloud REST v3 endpoints
-// that sdd-tracker-jira uses, for tests.
+// that qrtx-tracker-jira uses, for tests.
 package fakeapi
 
 import (

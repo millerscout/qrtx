@@ -1,8 +1,8 @@
 // Package kit is the plugin side of the sdd.adapter/v1 protocol: it reads the
-// request sdd writes to stdin, dispatches it to a provider, writes the one
+// request qrtx writes to stdin, dispatches it to a provider, writes the one
 // response and picks the exit code. It also gives providers host-bound
 // credentials and an HTTP client that maps API failures to adapter error
-// codes. Unstable until sdd v1.
+// codes. Unstable until qrtx v1.
 package kit
 
 import (
@@ -12,7 +12,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/millerscout/sdd/tracker"
+	"github.com/millerscout/qrtx/tracker"
 )
 
 // Handler serves every op of one envelope kind.

@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"crypto/sha256"
@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// trackerStateDir is where sdd keeps tracker state that is never committed:
+// trackerStateDir is where qrtx keeps tracker state that is never committed:
 // the outbox and lock files. Inside git it is <git common dir>/sdd, shared by
 // every worktree; outside git it is <repoRoot>/.sdd. It is not created here.
 func trackerStateDir(repoRoot string) (dir string, inGit bool) {

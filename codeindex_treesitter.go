@@ -1,6 +1,6 @@
 //go:build cgo
 
-package sdd
+package qrtx
 
 import (
 	"context"

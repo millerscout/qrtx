@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"errors"
@@ -110,7 +110,7 @@ func TestSyncHeartbeat(t *testing.T) {
 		t.Fatal("8s lease should debounce for 2s only")
 	}
 	// Session resolution.
-	t.Setenv("SDD_SESSION", "env-id")
+	t.Setenv("QRTX_SESSION", "env-id")
 	if got := ResolveSession(root, "", "hook-id").ID; got != "hook-id" {
 		t.Fatalf("hook first: %s", got)
 	}
@@ -120,7 +120,7 @@ func TestSyncHeartbeat(t *testing.T) {
 	if got := ResolveSession(root, "flag", "hook-id").ID; got != "flag" {
 		t.Fatalf("flag: %s", got)
 	}
-	t.Setenv("SDD_SESSION", "")
+	t.Setenv("QRTX_SESSION", "")
 	if got := ResolveSession(root, "", "").ID; !strings.Contains(got, ":") {
 		t.Fatalf("fallback: %s", got)
 	}
@@ -161,10 +161,10 @@ func TestSyncBegin(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(env)
-	if !strings.HasSuffix(string(b), "export SDD_SESSION=abc\n") {
+	if !strings.HasSuffix(string(b), "export QRTX_SESSION=abc\n") {
 		t.Fatalf("env file %q", b)
 	}
-	t.Setenv("SDD_SESSION", "abc")
+	t.Setenv("QRTX_SESSION", "abc")
 	me := ResolveSession(root, "", "")
 	if err := Claim(root, me, "demo/1.1", false, time.Now(), false); err != nil {
 		t.Fatal(err)

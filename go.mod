@@ -1,4 +1,4 @@
-module github.com/millerscout/sdd
+module github.com/millerscout/qrtx
 
 go 1.22.0
 

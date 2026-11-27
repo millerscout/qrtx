@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"bytes"
@@ -32,6 +32,11 @@ func TestAllowedValidateCommand(t *testing.T) {
 	}
 	if !allowedValidateCommand("rm -rf /", true, nil) {
 		t.Fatal("escape hatch should allow")
+	}
+	for _, c := range []string{"qrtx change verify --change x", "./qrtx change verify --change x", "sdd change verify --change x", "SDD_REPO=. sdd change verify --change x"} {
+		if !allowedValidateCommand(c, false, nil) {
+			t.Fatalf("%q should be allowed", c)
+		}
 	}
 	os.Unsetenv(EnvRunValidate)
 }

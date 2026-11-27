@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"encoding/json"
@@ -28,7 +28,7 @@ func FinishPropose(repoRoot, slug string, stdout, stderr io.Writer) error {
 	if err := ValidateChangeManifest(repoRoot, slug); err != nil {
 		return fmt.Errorf("change verify: %w", err)
 	}
-	_, _ = fmt.Fprintf(stdout, "sdd change verify: OK (%s)\n", slug)
+	_, _ = fmt.Fprintf(stdout, "qrtx change verify: OK (%s)\n", slug)
 	if err := proposePhasesReady(repoRoot, slug, len(rep.Overlaps) > 0); err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func FinishApply(repoRoot, slug string, stdout, stderr io.Writer) error {
 	if err := ValidateChangeManifest(repoRoot, slug); err != nil {
 		return fmt.Errorf("change verify: %w", err)
 	}
-	_, _ = fmt.Fprintf(stdout, "sdd change verify: OK (%s)\n", slug)
+	_, _ = fmt.Fprintf(stdout, "qrtx change verify: OK (%s)\n", slug)
 	raw, err := os.ReadFile(changeFilePath(repoRoot, slug))
 	if err != nil {
 		return err
@@ -245,6 +245,9 @@ func allowedValidateCommand(cmd string, escape bool, extra []string) bool {
 		"python3 scripts/",
 		CLIName + " ",
 		"./" + CLIName + " ",
+		// The tool's name before qrtx; manifests written then still say it.
+		"sdd ",
+		"./sdd ",
 	}
 	allowed = append(allowed, extra...)
 	for _, p := range allowed {

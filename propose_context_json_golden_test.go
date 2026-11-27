@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 
 // TestProposeContextJSONGolden pins every key and code-hit source value of
 // `propose-context --json`. Agents and benches read this payload, so a rename
-// must show up here first. Set SDD_UPDATE_GOLDEN=1 to rewrite the file.
+// must show up here first. Set QRTX_UPDATE_GOLDEN=1 to rewrite the file.
 func TestProposeContextJSONGolden(t *testing.T) {
 	rep := ProposeContextReport{
 		Slug:   "tic-tac-toe",
@@ -33,7 +33,7 @@ func TestProposeContextJSONGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join("testdata", "fixtures", "sdd_propose_context_json.golden.json")
-	if os.Getenv("SDD_UPDATE_GOLDEN") == "1" {
+	if os.Getenv("QRTX_UPDATE_GOLDEN") == "1" {
 		if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
 			t.Fatal(err)
 		}

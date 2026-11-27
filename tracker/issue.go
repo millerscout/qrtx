@@ -1,7 +1,7 @@
 // Package tracker is the sdd.adapter/v1 issue tracker protocol: the issue
 // model, the operation set, the plugin envelope and the conformance checks.
 // It imports only the standard library, so provider plugins can use it
-// without the rest of sdd. Unstable until sdd v1.
+// without the rest of qrtx. Unstable until qrtx v1.
 package tracker
 
 import (
@@ -292,7 +292,7 @@ const (
 )
 
 // IssueTracker is a tracker backend. The built-in file backend, exec plugins
-// (sdd-tracker-<name>) and host implementations all satisfy it.
+// (qrtx-tracker-<name>) and host implementations all satisfy it.
 type IssueTracker interface {
 	Capabilities() (TrackerCaps, error)
 	ListIssues(f IssueFilter) ([]Issue, error)

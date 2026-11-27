@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"crypto/sha256"
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/millerscout/sdd/tasksmd"
+	"github.com/millerscout/qrtx/tasksmd"
 )
 
 func init() {

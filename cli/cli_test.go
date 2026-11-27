@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/millerscout/sdd"
-	"github.com/millerscout/sdd/skills"
+	"github.com/millerscout/qrtx"
+	"github.com/millerscout/qrtx/skills"
 )
 
 func run(t *testing.T, args ...string) (string, string, error) {
@@ -22,7 +22,7 @@ func run(t *testing.T, args ...string) (string, string, error) {
 
 func TestChangeLifecycleCommands(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 
 	if out, _, err := run(t, "change", "new", "add-winner"); err != nil || !strings.Contains(out, "created sdd/changes/add-winner/") {
 		t.Fatalf("new: %q %v", out, err)
@@ -48,37 +48,37 @@ func TestChangeLifecycleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(raw), "`"+sdd.CLIName+" change review-packet --change add-winner`") {
+	if !strings.Contains(string(raw), "`"+qrtx.CLIName+" change review-packet --change add-winner`") {
 		t.Fatal("template should name the CLI")
 	}
 }
 
 func TestQuickCheckNeedsConfig(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
-	if err := sdd.RunQuickCheck(root, &bytes.Buffer{}, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "quick_check") {
+	t.Setenv(qrtx.EnvRepo, root)
+	if err := qrtx.RunQuickCheck(root, &bytes.Buffer{}, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "quick_check") {
 		t.Fatalf("want missing-config error, got %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, sdd.RepoConfigFile), []byte("quick_check: echo quick-ok\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, qrtx.RepoConfigFile), []byte("quick_check: echo quick-ok\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := sdd.RunQuickCheck(root, &out, &bytes.Buffer{}); err != nil || !strings.Contains(out.String(), "quick-ok") {
+	if err := qrtx.RunQuickCheck(root, &out, &bytes.Buffer{}); err != nil || !strings.Contains(out.String(), "quick-ok") {
 		t.Fatalf("quick check: %q %v", out.String(), err)
 	}
 }
 
 func TestUnknownSubcommand(t *testing.T) {
 	_, errOut, err := run(t, "nope")
-	if err == nil || !strings.Contains(errOut, "Usage: "+sdd.CLIName) {
+	if err == nil || !strings.Contains(errOut, "Usage: "+qrtx.CLIName) {
 		t.Fatalf("usage: %q %v", errOut, err)
 	}
 }
 
-// Every sdd command the bundled skills tell an agent to run exists.
+// Every qrtx command the bundled skills tell an agent to run exists.
 func TestSkillCommandsExist(t *testing.T) {
-	t.Setenv(sdd.EnvRepo, t.TempDir())
-	cmdRE := regexp.MustCompile("`sdd ((?:change )?[a-z][a-z-]*)")
+	t.Setenv(qrtx.EnvRepo, t.TempDir())
+	cmdRE := regexp.MustCompile("`qrtx ((?:change )?[a-z][a-z-]*)")
 	seen := map[string]bool{}
 	for _, name := range skills.Names {
 		raw, err := skills.Read(name)
@@ -102,7 +102,7 @@ func TestSkillCommandsExist(t *testing.T) {
 
 func TestSkillsInstallCommand(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	out, _, err := run(t, "skills", "install")
 	if err != nil || strings.Count(out, "created ") != len(skills.Names) {
 		t.Fatalf("install: %q %v", out, err)
@@ -117,14 +117,14 @@ func TestSkillsInstallCommand(t *testing.T) {
 
 func TestConstitutionCommands(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	if out, _, err := run(t, "constitution", "show"); err != nil || !strings.Contains(out, "no constitution") {
 		t.Fatalf("show without one: %q %v", out, err)
 	}
 	if out, _, err := run(t, "constitution", "show", "--json"); err != nil || strings.TrimSpace(out) != "[]" {
 		t.Fatalf("show --json without one: %q %v", out, err)
 	}
-	if out, _, err := run(t, "constitution", "init"); err != nil || !strings.Contains(out, sdd.DefaultConstitutionFile) {
+	if out, _, err := run(t, "constitution", "init"); err != nil || !strings.Contains(out, qrtx.DefaultConstitutionFile) {
 		t.Fatalf("init: %q %v", out, err)
 	}
 	if _, _, err := run(t, "constitution", "init"); err == nil {
@@ -141,8 +141,8 @@ func TestConstitutionCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, _, err = run(t, "change", "propose-context", "--change", "add-thing", "--json")
-	var rep sdd.ProposeContextReport
-	if err != nil || json.Unmarshal([]byte(out), &rep) != nil || len(rep.Constitution) != 1 || rep.Constitution[0].Path != sdd.DefaultConstitutionFile {
+	var rep qrtx.ProposeContextReport
+	if err != nil || json.Unmarshal([]byte(out), &rep) != nil || len(rep.Constitution) != 1 || rep.Constitution[0].Path != qrtx.DefaultConstitutionFile {
 		t.Fatalf("propose-context should carry the constitution: %q %v", out, err)
 	}
 }
@@ -151,7 +151,7 @@ func TestConstitutionCommands(t *testing.T) {
 // the old ones kept and the task-path counts added.
 func TestChangeScoreKeys(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv(sdd.EnvRepo, root)
+	t.Setenv(qrtx.EnvRepo, root)
 	src := filepath.Join("..", "testdata", "fixtures", "sdd_manifest_quality", "intent-good", "sdd", "changes", "intent-good", "change.sdd.md")
 	raw, err := os.ReadFile(src)
 	if err != nil {

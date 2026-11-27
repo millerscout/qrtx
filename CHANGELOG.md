@@ -2,36 +2,46 @@
 
 ## Unreleased
 
+### Changed
+
+- **Renamed to qrtx.** The tool, the Go module (`github.com/millerscout/qrtx`) and the binary (`go install github.com/millerscout/qrtx/cmd/qrtx@latest`) are now qrtx; the root package is `qrtx`. The method keeps its name, spec-driven development, and so do its files: `.sdd.yaml`, `sdd/`, `*.sdd.md` and the `sdd-*` skills. Breaking:
+  - **Tracker plugins** are found as `qrtx-tracker-<name>` on `PATH` (was `sdd-tracker-<name>`).
+  - **Environment variables** are `QRTX_*` (was `SDD_*`), including `QRTX_REPO`, `QRTX_CREDENTIALS`, `QRTX_SESSION`, `QRTX_NO_DAEMON`, and `QRTX_CRED_HOST`/`QRTX_CRED_SCOPE` for token commands.
+  - **Credentials** live in `<config dir>/qrtx/credentials.yaml`; an existing `<config dir>/sdd/credentials.yaml` is still read when the new file is missing.
+  - **Installed skills** still tell agents to run `sdd …`; replace them with `qrtx skills install --force` (a plain install reports them as local edits).
+  - **Hooks:** re-run `qrtx skills install --hooks` to replace hooks that call `sdd`, and `qrtx init` (or `qrtx tracker init`) to point the issues merge driver at the new binary.
+  - **Unchanged on purpose:** the plugin protocol id (`sdd.adapter/v1`), issue ids (`sdd-…`), the tracker `sdd` refs field and `<!-- sdd:v1 … -->` marker, the Jira `sdd` property, the `sdd-issues` merge driver name and `.git/sdd/` state, so existing data and remote issues keep working.
+
 ### Added
 
-- **`sdd sync`: coordination between agent sessions in one repository** (change `tracker-sync`; unstable until v1).
+- **`qrtx sync`: coordination between agent sessions in one repository** (change `tracker-sync`; unstable until v1).
   - **Leases:** one-hour leases that heartbeats extend.
   - **Claims:** advisory claims on issues and `<slug>/<task>`.
   - **Inbox:** each session sees the others' claims, task checkboxes flipped in any worktree, and remote tracker changes.
   - **Daemon:** a small daemon started on demand expires leases, flushes the outbox, watches worktrees and polls trackers, and exits when every session is idle.
-  - **Claude Code hooks:** `sdd skills install --hooks` sets them up (`SessionStart`, `UserPromptSubmit`, async `PostToolUse`, `SessionEnd`).
+  - **Claude Code hooks:** `qrtx skills install --hooks` sets them up (`SessionStart`, `UserPromptSubmit`, async `PostToolUse`, `SessionEnd`).
   - **Skills:** the bundled skills claim and release work.
   - **Docs:** see `docs/sync.md`.
-- **Faster `sdd tracker add`:** a new add skips the plugin's duplicate lookup (`fresh` in `create_issue`), which saved about 3s per add on GitHub.
-- **`sdd tracker add --client-ref`:** after a timed-out add, sdd prints the exact command that retries it without making a duplicate.
-- **Fresh issues in `sdd tracker list`:** an issue created in the last minute is listed even while the provider's list lags behind.
-- **Clearer plugin timeouts:** plugins get a deadline a little before sdd stops them, so a stalled request is reported by the plugin with what it was doing.
-- **`sdd skills install --hooks`:** adds `.claude/settings.local.json` to `.gitignore` unless git already ignores it, and says the hooks are local to the clone (`--shared` commits them).
+- **Faster `qrtx tracker add`:** a new add skips the plugin's duplicate lookup (`fresh` in `create_issue`), which saved about 3s per add on GitHub.
+- **`qrtx tracker add --client-ref`:** after a timed-out add, qrtx prints the exact command that retries it without making a duplicate.
+- **Fresh issues in `qrtx tracker list`:** an issue created in the last minute is listed even while the provider's list lags behind.
+- **Clearer plugin timeouts:** plugins get a deadline a little before qrtx stops them, so a stalled request is reported by the plugin with what it was doing.
+- **`qrtx skills install --hooks`:** adds `.claude/settings.local.json` to `.gitignore` unless git already ignores it, and says the hooks are local to the clone (`--shared` commits them).
 - **Outbox draining:** only one process drains at a time, and the outbox lock is taken per entry, never across a tracker call.
 - **Windows locks:** lock files record their owner, so a process never removes a lock it no longer owns.
 
 - **First-party tracker plugins `sdd-tracker-github` and `sdd-tracker-jira`** (change `tracker-providers`; unstable until v1). Install them with `go install github.com/millerscout/sdd/cmd/sdd-tracker-{github,jira}@latest`.
   - **GitHub:** "in progress" is a label; `client_ref` and the sdd links live in a hidden body marker; pull requests are skipped; listing is paged.
   - **Jira Cloud:** REST v3 with ADF bodies; issues move through workflow transitions; cancelling sets a "Won't Do"-style resolution; idempotency uses a `sdd-cref-` label.
-- **`sdd init`** sets up a repository or folder: skills, constitution, merge driver and, with `--tracker`, the tracker. **`sdd tracker setup github|jira`** writes the `.sdd.yaml` tracker block (keeping comments), binds credentials and runs a read-only check. Both are safe to re-run.
-- **User-level `credentials.yaml`:** binds each tracker API host and an allow-list of repos or projects to a `token_env` or `token_command`. It never holds a literal token. `token_command` gets `SDD_CRED_HOST`/`SDD_CRED_SCOPE` for short-lived scoped tokens. Redirects to another host are refused.
-- **Package `tracker`:** the protocol types, `Conformance` and the marker helpers, using only the standard library. Root `sdd` keeps aliases.
+- **`qrtx init`** sets up a repository or folder: skills, constitution, merge driver and, with `--tracker`, the tracker. **`qrtx tracker setup github|jira`** writes the `.sdd.yaml` tracker block (keeping comments), binds credentials and runs a read-only check. Both are safe to re-run.
+- **User-level `credentials.yaml`:** binds each tracker API host and an allow-list of repos or projects to a `token_env` or `token_command`. It never holds a literal token. `token_command` gets `QRTX_CRED_HOST`/`QRTX_CRED_SCOPE` for short-lived scoped tokens. Redirects to another host are refused.
+- **Package `tracker`:** the protocol types, `Conformance` and the marker helpers, using only the standard library. Root `qrtx` keeps aliases.
 - **Package `providers/kit` and `kittest`:** for writing providers.
-- **Plugin environment:** sdd passes `SDD_TRACKER_DEADLINE` to plugins.
-- **`from-deferred` duplicates:** `sdd tracker from-deferred` skips bullets whose issue already exists.
+- **Plugin environment:** qrtx passes `QRTX_TRACKER_DEADLINE` to plugins.
+- **`from-deferred` duplicates:** `qrtx tracker from-deferred` skips bullets whose issue already exists.
 
 - **Project backlog and pluggable issue trackers** (change `tracker-standard`; unstable until v1).
-  - `sdd tracker add|list|get|close|start|from-deferred|outbox|check|init|merge-driver`.
+  - `qrtx tracker add|list|get|close|start|from-deferred|outbox|check|init|merge-driver`.
   - **Built-in `file` backend:** `sdd/issues.jsonl`, with hash IDs, sorted canonical lines and a per-issue merge driver.
   - **Plugin backends:** any `sdd-tracker-<name>` on `PATH` that speaks `sdd.adapter/v1`. The contract is in `docs/tracker-protocol.md` and `docs/schema/tracker/v1/`.
   - **Manifest field `issues:`:** links tracker issues to a change. `change archive` comments on each linked issue and completes it, unless another active change still links it. The writes go through a crash-safe outbox, so a tracker failure never blocks the archive.

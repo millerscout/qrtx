@@ -1,4 +1,4 @@
-// Package skills embeds the agent skills for the sdd workflow
+// Package skills embeds the agent skills for the spec-driven development workflow
 // (sdd-propose, sdd-apply, sdd-archive), one SKILL.md per directory.
 package skills
 
