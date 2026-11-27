@@ -32,6 +32,26 @@ func readHook(args []string) hookInput {
 	return h
 }
 
+// hookSilent reports whether a hook-mode sync command should do nothing:
+// user-wide hooks fire in every session, so heartbeat, begin, end and inbox
+// act only when both the hook's cwd (the process cwd when the hook gives
+// none, ignoring $QRTX_REPO) and root lie in a qrtx project.
+func hookSilent(cmd, cwd, root string) bool {
+	switch cmd {
+	case "heartbeat", "begin", "end", "inbox":
+	default:
+		return false
+	}
+	if cwd == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return true
+		}
+		cwd = wd
+	}
+	return !qrtx.InProject(cwd) || !qrtx.IsProject(root)
+}
+
 func runSync(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
 		fmt.Fprintf(stderr, syncUsage, qrtx.CLIName)
@@ -54,6 +74,9 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 				_ = os.Chdir(wd)
 			}
 		}
+	}
+	if hasFlag(args, "--hook") && hookSilent(args[0], hook.Cwd, root) {
+		return nil
 	}
 	who := qrtx.ResolveSession(root, flagValue(args, "--session"), hook.SessionID)
 	now := time.Now()

@@ -26,7 +26,8 @@
   - **`tracker start`:** refuses an issue that an open issue blocks, naming the blockers and creating nothing; `--force` starts it and says so. It fails closed when the open-issue listing is incomplete, and warns and skips the check when the backend cannot list issues.
   - **`tracker list`:** orders by priority (1 first, none last, backend order among equals) and ends a blocked issue's line with `blocked by <refs>`, whatever the filter. `--json` keeps the issue schema.
   - **`change propose-context`:** names which of two overlapping changes goes first when their linked issues are related by `blocks` (`goes_first`), or warns when the tracker cannot be reached.
-
+- **`qrtx skills install --hooks --global`** (change `global-session-hooks`): installs the sync hooks once, in `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`), so every Claude Code session on the machine takes part in sync. It installs hooks only, replaces hooks that call the old `sdd` binary, reports `unchanged` on a re-run, and prints a `note:` when the current project's own settings still run sync hooks; remove those so each hook runs once. It refuses a temporary `go run` build when `qrtx` is not on `PATH`.
+- **Sync hooks act only in qrtx projects:** `qrtx sync heartbeat|begin|end|inbox --hook` exit 0 silently and create no state unless the session's folder is in a project whose root holds `sdd/changes/`, `sdd/constitution.md` or `.sdd.yaml` (a `.git` or `go.mod` alone no longer counts, and `$QRTX_REPO` does not bypass it). A repository that used hooks without any of those files goes quiet; `qrtx init` or `qrtx change new` turns it back on. Commands without `--hook` are unchanged.
 - **`qrtx sync`: coordination between agent sessions in one repository** (change `tracker-sync`; unstable until v1).
   - **Leases:** one-hour leases that heartbeats extend.
   - **Claims:** advisory claims on issues and `<slug>/<task>`.

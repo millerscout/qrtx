@@ -370,7 +370,7 @@ func slugFromArgs(args []string) string {
 // runSkills lists or installs the bundled agent skills.
 func runSkills(args []string, stdout, stderr io.Writer) error {
 	usage := func() {
-		fmt.Fprintf(stderr, "Usage: %s skills list | install [--dir <dir>] [--force] [--hooks [--shared]]\n", qrtx.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s skills list | install [--dir <dir>] [--force] [--hooks [--shared|--global]]\n", qrtx.CLIName)
 	}
 	if len(args) == 0 {
 		usage()
@@ -383,7 +383,7 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "install":
-		dir, force, hooks, shared := "", false, false, false
+		dir, force, hooks, shared, global := "", false, false, false, false
 		for i := 1; i < len(args); i++ {
 			switch args[i] {
 			case "--force":
@@ -392,6 +392,8 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 				hooks = true
 			case "--shared":
 				shared = true
+			case "--global":
+				global = true
 			case "--dir":
 				i++
 				if i >= len(args) {
@@ -402,6 +404,17 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 				usage()
 				return fmt.Errorf("unknown flag: %s", args[i])
 			}
+		}
+		if global {
+			switch {
+			case !hooks:
+				return fmt.Errorf("skills install: --global installs hooks only; pass --hooks --global")
+			case shared:
+				return fmt.Errorf("skills install: --global and --shared pick different settings files; pass one")
+			case dir != "":
+				return fmt.Errorf("skills install: --global installs hooks only and copies no skills; drop --dir")
+			}
+			return installGlobalHooks(stdout)
 		}
 		if dir == "" {
 			root, err := qrtx.RepoRoot()
@@ -497,6 +510,87 @@ func runConstitution(args []string, stdout, stderr io.Writer) error {
 		usage()
 		return fmt.Errorf("unknown constitution subcommand: %s", args[0])
 	}
+}
+
+// installGlobalHooks merges the sync hooks into the user-wide Claude Code
+// settings, and notes project settings files that still run sync hooks of
+// their own.
+func installGlobalHooks(stdout io.Writer) error {
+	cfg, err := claudeConfigDir()
+	if err != nil {
+		return err
+	}
+	command := hookCommand()
+	if command != qrtx.CLIName && isTempBuild(strings.Trim(command, `"`)) {
+		return fmt.Errorf("skills install --global: %s is not on PATH and this binary is a temporary build; install it first (go install github.com/millerscout/qrtx/cmd/qrtx@latest)", qrtx.CLIName)
+	}
+	path := filepath.Join(cfg, "settings.json")
+	changed, err := skills.InstallHooks(path, command)
+	if err != nil {
+		return err
+	}
+	action := "unchanged"
+	if changed {
+		action = "updated"
+	}
+	_, _ = fmt.Fprintf(stdout, "%s %s (qrtx sync hooks)\n", action, path)
+	root, err := qrtx.RepoRoot()
+	if err != nil {
+		return nil
+	}
+	for _, name := range []string{"settings.json", "settings.local.json"} {
+		p := filepath.Join(root, ".claude", name)
+		if same(p, path) {
+			continue
+		}
+		if has, err := skills.HasSyncHooks(p); err == nil && has {
+			_, _ = fmt.Fprintf(stdout, "note: %s also runs sync hooks; remove them so each hook runs once\n", p)
+		}
+	}
+	return nil
+}
+
+// claudeConfigDir is where Claude Code keeps user settings:
+// $CLAUDE_CONFIG_DIR, else ~/.claude.
+func claudeConfigDir() (string, error) {
+	if d := os.Getenv("CLAUDE_CONFIG_DIR"); d != "" {
+		return filepath.Abs(d)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".claude"), nil
+}
+
+// isTempBuild reports whether exe is a throwaway build (go run, go test):
+// under the OS temp dir or a go-build directory.
+func isTempBuild(exe string) bool {
+	if strings.Contains(filepath.ToSlash(exe), "/go-build") {
+		return true
+	}
+	return within(exe, os.TempDir())
+}
+
+func within(path, dir string) bool {
+	p, d := canonical(path), canonical(dir)
+	rel, err := filepath.Rel(d, p)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func same(a, b string) bool { return canonical(a) == canonical(b) }
+
+func canonical(p string) string {
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	if r, err := filepath.EvalSymlinks(filepath.Dir(p)); err == nil {
+		return filepath.Join(r, filepath.Base(p))
+	}
+	return p
 }
 
 // hookCommand is how installed hooks call qrtx: by name when it is on PATH,

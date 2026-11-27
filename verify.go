@@ -122,18 +122,50 @@ func RepoRoot() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := wd
+	if root, ok := findRoot(wd); ok {
+		return root, nil
+	}
+	return wd, nil
+}
+
+// findRoot walks up from dir to the nearest directory holding a root marker.
+func findRoot(dir string) (string, bool) {
 	for {
 		for _, marker := range rootMarkers {
 			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
-				return dir, nil
+				return dir, true
 			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			break
+			return "", false
 		}
 		dir = parent
 	}
-	return wd, nil
+}
+
+// projectMarkers are the method's own files: a root holding any of them is a
+// qrtx project. A .git or go.mod alone does not make one.
+var projectMarkers = []string{filepath.Join("sdd", "changes"), DefaultConstitutionFile, RepoConfigFile}
+
+// IsProject reports whether root itself holds sdd/changes, the default
+// constitution or .sdd.yaml.
+func IsProject(root string) bool {
+	for _, m := range projectMarkers {
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(m))); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// InProject reports whether the root RepoRoot would resolve from dir,
+// ignoring RepoEnv, is a qrtx project.
+func InProject(dir string) bool {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	root, ok := findRoot(abs)
+	return ok && IsProject(root)
 }

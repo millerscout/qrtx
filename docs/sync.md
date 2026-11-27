@@ -10,7 +10,12 @@ When several agent sessions work in one repository (Claude Code sessions, worktr
 
 ```bash
 qrtx skills install --hooks          # writes .claude/settings.local.json (--shared: settings.json)
+qrtx skills install --hooks --global # writes ~/.claude/settings.json: every session on this machine
 ```
+
+With `--global`, the hooks go into the user-wide settings (`$CLAUDE_CONFIG_DIR/settings.json` when that is set). It installs hooks only: no skills are copied and nothing under the current project changes. A re-run reports `unchanged`. It refuses to run from a temporary build (`go run`) when `qrtx` is not on `PATH`, because the hooks would point at a deleted file; install qrtx first. Hooks that still call the old `sdd` binary with the same arguments are replaced. If the current project's `.claude/settings.json` or `.claude/settings.local.json` still runs sync hooks of its own, the install prints a `note:` naming the file. Remove those entries by hand so each hook runs once.
+
+**Only in qrtx projects.** The hook commands (`sync heartbeat|begin|end|inbox --hook`) act only when the session's folder is in a qrtx project: its root (the nearest folder with `.sdd.yaml`, `go.mod` or `.git`) holds `sdd/changes/`, `sdd/constitution.md` or `.sdd.yaml`. Anywhere else (your home folder, a scratch folder, a plain git repository or Go module) they exit 0, print nothing and create no state. `$QRTX_REPO` does not change that: the session's own folder must still be in a project. `qrtx init` or `qrtx change new` makes a repository a project. Commands run without `--hook` work anywhere, as before.
 
 The hooks:
 
@@ -69,4 +74,4 @@ Everything lives in the shared state directory: `<git common dir>/sdd/` (all wor
 | `sync.log` | The daemon's log, rotated at 1 MB |
 | `hb-*` | Heartbeat markers for the debounce |
 
-To turn sync off: remove the hooks from `.claude/settings.local.json`, run `qrtx sync stop`, and delete those files.
+To turn sync off: remove the hooks from `.claude/settings.local.json` (or `~/.claude/settings.json` after a `--global` install), run `qrtx sync stop`, and delete those files.

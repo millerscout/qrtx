@@ -1,6 +1,6 @@
 ```change
 name: global-session-hooks
-status: planning
+status: complete
 packages: []
 ```
 
@@ -74,6 +74,7 @@ Rollback: remove the five `qrtx sync` entries from `~/.claude/settings.json` (ot
 - `cli/sync_test.go` `TestSyncHeartbeatCLI` and `TestSyncInboxCLI` run `--hook` against bare temp roots via `QRTX_REPO`; they need a `.sdd.yaml` once the guard lands. `cli/main_test.go` sets `QRTX_NO_DAEMON=1`.
 - Hooks on this machine: `~/.claude/settings.json` holds no sync hooks; `mimile/sdd/.claude/settings.local.json` and `mimile/sdd-product/.claude/settings.local.json` hold the five `"/Users/aurora/go/bin/sdd" sync …` entries.
 - Baseline: `go test ./... -count=1` passes at `d48d725`.
+- After apply: `go vet ./...` and `go test ./... -count=1` pass; `go run ./cmd/qrtx verify-ast` reports only the `testdata/pkgdrift` fixture drift that `d48d725` already has.
 
 ## Assumptions
 
@@ -92,14 +93,14 @@ Rollback: remove the five `qrtx sync` entries from `~/.claude/settings.json` (ot
 
 ## Tasks
 
-- [ ] 1.1 Add `qrtx.IsProject(root)` (true when `root` holds `sdd/changes`, `DefaultConstitutionFile` or `RepoConfigFile`) and `qrtx.InProject(dir)`, and the hook guard in `runSync` after the hook-cwd re-resolution; give `TestSyncHeartbeatCLI` and `TestSyncInboxCLI` (bare temp roots with `--hook`) a `.sdd.yaml`. Guard tests `t.Chdir` to a temp dir so nothing resolves to this repo's live `.git/sdd`. verify: `go test ./cli -run 'TestSyncHook|TestSyncHeartbeatCLI|TestSyncInboxCLI' -count=1` covers S4,S5,S6
-- [ ] 1.2 Add `--global` to `skills install`: settings path from `$CLAUDE_CONFIG_DIR` or `os.UserHomeDir()/.claude`, hooks only, reject `--shared`/`--dir`, refuse a temp executable, note project settings files that still hold sync hooks (new `skills.HasSyncHooks`). verify: `go test ./cli -run TestHooksGlobal -count=1` covers S1,S2,S3,S7,S8
-- [ ] 1.3 Update `docs/sync.md` (global install, project guard, turning sync off) and the CHANGELOG Unreleased section. verify: `grep -n -- '--global' docs/sync.md CHANGELOG.md` shows both covers S1,S4
+- [x] 1.1 Add `qrtx.IsProject(root)` (true when `root` holds `sdd/changes`, `DefaultConstitutionFile` or `RepoConfigFile`) and `qrtx.InProject(dir)`, and the hook guard in `runSync` after the hook-cwd re-resolution; give `TestSyncHeartbeatCLI` and `TestSyncInboxCLI` (bare temp roots with `--hook`) a `.sdd.yaml`. Guard tests `t.Chdir` to a temp dir so nothing resolves to this repo's live `.git/sdd`. verify: `go test ./cli -run 'TestSyncHook|TestSyncHeartbeatCLI|TestSyncInboxCLI' -count=1` covers S4,S5,S6
+- [x] 1.2 Add `--global` to `skills install`: settings path from `$CLAUDE_CONFIG_DIR` or `os.UserHomeDir()/.claude`, hooks only, reject `--shared`/`--dir`, refuse a temp executable, note project settings files that still hold sync hooks (new `skills.HasSyncHooks`). verify: `go test ./cli -run TestHooksGlobal -count=1` covers S1,S2,S3,S7,S8
+- [x] 1.3 Update `docs/sync.md` (global install, project guard, turning sync off) and the CHANGELOG Unreleased section. verify: `grep -n -- '--global' docs/sync.md CHANGELOG.md` shows both covers S1,S4
 
 ## Validate
 
-- [ ] V1.1 `go vet ./... && go test ./... -count=1` covers S1,S2,S3,S4,S5,S6,S7,S8
-- [ ] V1.2 `go run ./cmd/qrtx verify-ast` reports no new drift
+- [x] V1.1 `go vet ./... && go test ./... -count=1` covers S1,S2,S3,S4,S5,S6,S7,S8
+- [x] V1.2 `go run ./cmd/qrtx verify-ast` reports no new drift (only the existing `testdata/pkgdrift` fixture drift, as at `d48d725`)
 
 ## Constitution
 

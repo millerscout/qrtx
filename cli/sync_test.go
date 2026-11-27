@@ -23,6 +23,7 @@ func withHookStdin(t *testing.T, body string) {
 
 func TestSyncHeartbeatCLI(t *testing.T) {
 	root := t.TempDir()
+	_ = os.WriteFile(filepath.Join(root, qrtx.RepoConfigFile), nil, 0o644) // hooks act only in qrtx projects
 	t.Setenv(qrtx.EnvRepo, root)
 	withHookStdin(t, `{"session_id":"abc","cwd":"`+root+`","hook_event_name":"UserPromptSubmit"}`)
 	if out, _, err := run(t, "sync", "heartbeat", "--hook"); err != nil || !strings.Contains(out, "abc: lease until") {
@@ -69,6 +70,7 @@ func TestSyncClaimCLI(t *testing.T) {
 
 func TestSyncInboxCLI(t *testing.T) {
 	root := t.TempDir()
+	_ = os.WriteFile(filepath.Join(root, qrtx.RepoConfigFile), nil, 0o644) // hooks act only in qrtx projects
 	t.Setenv(qrtx.EnvRepo, root)
 	run(t, "sync", "heartbeat", "--session", "A")
 	run(t, "sync", "heartbeat", "--session", "B")

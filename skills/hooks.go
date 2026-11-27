@@ -140,3 +140,52 @@ func isLegacyCommand(cmd, args string) bool {
 	prog = strings.Trim(prog, `"`)
 	return prog == "sdd" || filepath.Base(prog) == "sdd"
 }
+
+// HasSyncHooks reports whether the settings file at path holds a hook that
+// runs a qrtx sync hook command, through qrtx or the old sdd binary (bare or
+// by path, quoted or not). A missing file holds none.
+func HasSyncHooks(path string) (bool, error) {
+	raw, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return false, nil
+	}
+	var settings map[string]any
+	if err := json.Unmarshal(raw, &settings); err != nil {
+		return false, fmt.Errorf("%s: %v", path, err)
+	}
+	hooks, _ := settings["hooks"].(map[string]any)
+	for _, groups := range hooks {
+		list, _ := groups.([]any)
+		for _, g := range list {
+			gm, _ := g.(map[string]any)
+			entries, _ := gm["hooks"].([]any)
+			for _, h := range entries {
+				hm, _ := h.(map[string]any)
+				if cmd, _ := hm["command"].(string); isSyncCommand(cmd) {
+					return true, nil
+				}
+			}
+		}
+	}
+	return false, nil
+}
+
+func isSyncCommand(cmd string) bool {
+	for _, h := range syncHooks {
+		prog, ok := strings.CutSuffix(cmd, " "+h.args)
+		if !ok {
+			continue
+		}
+		base := filepath.Base(strings.Trim(prog, `"`))
+		if base == "qrtx" || base == "qrtx.exe" || base == "sdd" {
+			return true
+		}
+	}
+	return false
+}

@@ -2,6 +2,7 @@ package skills
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -156,5 +157,28 @@ func TestHooksInstallReplacesLegacySdd(t *testing.T) {
 	}
 	if changed, err := InstallHooks(path, "qrtx"); err != nil || changed {
 		t.Fatalf("re-run: %v %v", changed, err)
+	}
+}
+
+func TestHasSyncHooks(t *testing.T) {
+	dir := t.TempDir()
+	cases := map[string]bool{
+		`{"hooks":{"SessionEnd":[{"hooks":[{"type":"command","command":"qrtx sync end --hook"}]}]}}`:                           true,
+		`{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"\"/x/sdd\" sync heartbeat --hook --quiet"}]}]}}`: true,
+		`{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"sdd change list"}]}]}}`:                              false,
+		`{"permissions":{}}`: false,
+		``:                   false,
+	}
+	i := 0
+	for body, want := range cases {
+		i++
+		path := filepath.Join(dir, fmt.Sprintf("s%d.json", i))
+		_ = os.WriteFile(path, []byte(body), 0o644)
+		if got, err := HasSyncHooks(path); err != nil || got != want {
+			t.Fatalf("%s: got %v %v, want %v", body, got, err, want)
+		}
+	}
+	if got, err := HasSyncHooks(filepath.Join(dir, "missing.json")); err != nil || got {
+		t.Fatalf("missing file: %v %v", got, err)
 	}
 }
