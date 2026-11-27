@@ -1,6 +1,6 @@
 ```change
 name: qrtx-rename
-status: planning
+status: complete
 packages: []
 ```
 
