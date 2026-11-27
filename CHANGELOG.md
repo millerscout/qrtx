@@ -4,6 +4,17 @@
 
 ### Added
 
+- **`sdd sync`: coordination between agent sessions in one repository** (change `tracker-sync`; unstable until v1).
+  - **Leases:** one-hour leases that heartbeats extend.
+  - **Claims:** advisory claims on issues and `<slug>/<task>`.
+  - **Inbox:** each session sees the others' claims, task checkboxes flipped in any worktree, and remote tracker changes.
+  - **Daemon:** a small daemon started on demand expires leases, flushes the outbox, watches worktrees and polls trackers, and exits when every session is idle.
+  - **Claude Code hooks:** `sdd skills install --hooks` sets them up (`SessionStart`, `UserPromptSubmit`, async `PostToolUse`, `SessionEnd`).
+  - **Skills:** the bundled skills claim and release work.
+  - **Docs:** see `docs/sync.md`.
+- **Outbox draining:** only one process drains at a time, and the outbox lock is taken per entry, never across a tracker call.
+- **Windows locks:** lock files record their owner, so a process never removes a lock it no longer owns.
+
 - **First-party tracker plugins `sdd-tracker-github` and `sdd-tracker-jira`** (change `tracker-providers`; unstable until v1). Install them with `go install github.com/millerscout/sdd/cmd/sdd-tracker-{github,jira}@latest`.
   - **GitHub:** "in progress" is a label; `client_ref` and the sdd links live in a hidden body marker; pull requests are skipped; listing is paged.
   - **Jira Cloud:** REST v3 with ADF bodies; issues move through workflow transitions; cancelling sets a "Won't Do"-style resolution; idempotency uses a `sdd-cref-` label.

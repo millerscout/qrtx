@@ -7,7 +7,7 @@ Propose a new **SDD-native** change under `sdd/changes/<slug>/`. Planning only â
 
 **Input**: Kebab-case slug after `/sdd-propose`, or a short description (derive slug from it), or a tracker issue ref (`file:sdd-k3f9qa`, `github:123`, or a bare id for the configured backend).
 
-**From an issue:** when the input is an issue ref, pick the slug from the issue's outcome and run `sdd tracker start <ref> <slug>` instead of `sdd change new <slug>`. It creates the change, fills **User request** from the issue, links the issue under `issues:` and marks it started. `sdd tracker list` shows the open backlog, and `sdd change propose-context` lists it as `backlog`: reuse a matching issue instead of planning the same work twice.
+**From an issue:** when the input is an issue ref, first run `sdd sync claim <ref>`. If another session holds it, stop and tell the user. If it prints `sync not enabled; claim skipped`, carry on. Then, pick the slug from the issue's outcome and run `sdd tracker start <ref> <slug>` instead of `sdd change new <slug>`. It creates the change, fills **User request** from the issue, links the issue under `issues:` and marks it started. `sdd tracker list` shows the open backlog, and `sdd change propose-context` lists it as `backlog`: reuse a matching issue instead of planning the same work twice.
 
 **Planning boundary**: Author or update `change.sdd.md`, linked `contract.sdd.md` packages, and tasks. Stop when planning artifacts are coherent. Implementation is `/sdd-apply`.
 

@@ -10,6 +10,7 @@ Implement tasks from `sdd/changes/<slug>/change.sdd.md`.
 **Steps**
 
 1. Resolve slug — confirm manifest exists; `sdd change status --change <slug>`.
+   - **Claim the work** so other sessions on this machine do not pick it up: `sdd sync claim <slug>/<task id>` for the task you start (and `sdd sync claim <backend>:<id>` for each issue under `issues:`). If it prints `sync not enabled; claim skipped`, carry on. If it fails naming another session, stop and tell the user who holds it instead of working on it. Release each claim with `sdd sync claim <key> --release` when its task is done or you stop.
 2. Read the spec before coding. When the manifest has these sections, read **Scenarios** (`- S<n> WHEN … THEN …`), **Decisions** (`- D<n> … Rejected: …`), **Risks** (including any `Deploy:` and `Rollback:` lines) and **Review**.
    - For each task or Validate line that cites `covers S<n>`, write or extend the test that proves that scenario's THEN, and mark the line `- [x]` only when that test passes. `finish-apply` fails with `scenarios not covered by a checked task: S…` while any scenario is cited only by unchecked lines.
    - Never implement against a Decision, and never use an approach the Decision lists as `Rejected:`. If a Decision proves wrong during apply, stop and ask the user; do not silently change the design.

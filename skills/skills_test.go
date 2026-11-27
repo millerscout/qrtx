@@ -1,6 +1,7 @@
 package skills
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -95,5 +96,39 @@ func TestInstallKeep(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(edited); string(b) != "local\n" {
 		t.Fatal("local edit overwritten")
+	}
+}
+
+func TestHooksInstall(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".claude", "settings.local.json")
+	_ = os.MkdirAll(filepath.Dir(path), 0o755)
+	orig := `{"permissions":{"allow":["Bash(go test:*)"]},"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo pre"}]}]}}`
+	_ = os.WriteFile(path, []byte(orig), 0o644)
+	changed, err := InstallHooks(path, "sdd")
+	if err != nil || !changed {
+		t.Fatalf("%v %v", changed, err)
+	}
+	raw, _ := os.ReadFile(path)
+	var s map[string]any
+	if err := json.Unmarshal(raw, &s); err != nil {
+		t.Fatal(err)
+	}
+	if s["permissions"] == nil || !strings.Contains(string(raw), "echo pre") {
+		t.Fatalf("lost existing settings:\n%s", raw)
+	}
+	for _, want := range []string{`"SessionStart"`, `"UserPromptSubmit"`, `"PostToolUse"`, `"SessionEnd"`, "sdd sync begin --hook", "sdd sync heartbeat --hook --quiet", "sdd sync inbox --hook --brief", "sdd sync end --hook", `"async": true`, `"matcher": "*"`} {
+		if !strings.Contains(string(raw), want) {
+			t.Fatalf("missing %s:\n%s", want, raw)
+		}
+	}
+	if strings.Count(string(raw), "sdd sync heartbeat --hook --quiet") != 2 {
+		t.Fatalf("heartbeat should appear for two events:\n%s", raw)
+	}
+	changed, err = InstallHooks(path, "sdd")
+	if err != nil || changed {
+		t.Fatalf("re-run: %v %v", changed, err)
+	}
+	if again, _ := os.ReadFile(path); string(again) != string(raw) {
+		t.Fatal("re-run rewrote the file")
 	}
 }

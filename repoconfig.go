@@ -31,6 +31,15 @@ type RepoConfig struct {
 	Project string `yaml:"project"`
 	// Tracker selects the issue tracker backend. Unstable until v1.
 	Tracker TrackerConfig `yaml:"tracker"`
+	// Sync tunes session leases and the sync daemon. Unstable until v1.
+	Sync SyncConfig `yaml:"sync"`
+}
+
+// SyncConfig is the `sync:` block of .sdd.yaml; durations as Go strings.
+type SyncConfig struct {
+	Lease    string `yaml:"lease"`    // default 1h
+	Tick     string `yaml:"tick"`     // default 5s
+	Interval string `yaml:"interval"` // remote poll, default 2m
 }
 
 // TrackerConfig is the `tracker:` block of .sdd.yaml. LoadRepoConfig only

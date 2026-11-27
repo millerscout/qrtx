@@ -68,6 +68,7 @@ See [`examples/tic-tac-toe`](examples/tic-tac-toe) for a complete planned change
 | `sdd tracker add` / `list` / `get` / `close` | The project backlog: `sdd/issues.jsonl` by default, or any tracker plugin |
 | `sdd tracker start <ref> <slug>` | Turn an issue into a change and link them both ways |
 | `sdd tracker from-deferred --change <slug>` | Put a change's `## Deferred` work in the backlog |
+| `sdd sync heartbeat` / `claim` / `inbox` / `status` | Several sessions in one repo: leases, claims, and an inbox of what the others did ([docs/sync.md](docs/sync.md)) |
 | `sdd tracker outbox` / `check` / `init` | Pending tracker writes; plugin conformance check; register the `issues.jsonl` merge driver |
 
 ## Backlog and issue trackers
@@ -83,6 +84,10 @@ sdd tracker start file:sdd-k3f9qa dark-mode
 - **Default backend:** the built-in `file` backend, `sdd/issues.jsonl`, with one JSON issue per line. It is committed with your code, and branches merge cleanly.
 - **Other backends:** GitHub and Jira have first-party plugins (`sdd tracker setup github|jira`, see [docs/providers.md](docs/providers.md)). Anything else works through any `sdd-tracker-<name>` on `PATH` that speaks [the tracker protocol](docs/tracker-protocol.md). Tokens live in your user-level credentials file, bound to a host and an allow-list of repos or projects, never in `.sdd.yaml`.
 - **Links:** a change links its issues under `issues:`, and archiving it marks them completed. Each issue records the repo, project and change that worked on it.
+
+## Several sessions at once
+
+Run `sdd skills install --hooks` once per clone. Claude Code sessions then keep a one-hour lease while they work, claim the tasks and issues they pick up, and see in each prompt what the other sessions claimed, checked off or changed in the tracker. A small daemon handles the timers and exits when every session is idle. See [docs/sync.md](docs/sync.md).
 
 ## Configuration
 

@@ -339,7 +339,7 @@ func flagValue(args []string, flag string) string {
 }
 
 var valueFlags = map[string]bool{"--status": true, "--change": true, "--description": true, "--backend": true, "--drop": true,
-	"--repo": true, "--api-url": true, "--url": true, "--project": true, "--issue-type": true, "--token-env": true, "--email-env": true, "--token-command": true, "--tracker": true}
+	"--repo": true, "--api-url": true, "--url": true, "--project": true, "--issue-type": true, "--token-env": true, "--email-env": true, "--token-command": true, "--tracker": true, "--session": true}
 
 // positionals returns the arguments that are neither flags nor flag values.
 func positionals(args []string, extraValueFlags ...string) []string {

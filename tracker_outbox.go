@@ -202,57 +202,113 @@ func DropOutboxEntry(repoRoot string, seq int) error {
 // DrainOutbox sends this root's pending writes in order. An entry leaves
 // the outbox only when the backend confirms it. A retryable failure keeps
 // it for the next drain; later writes to the same issue wait behind it.
-// With no outbox file it does nothing and creates nothing.
+// Only one process drains at a time (a non-blocking drain lock; a busy
+// drainer makes this call report the pending count and return). The outbox
+// lock is taken per entry, never across a backend call. With no outbox file
+// it does nothing and creates nothing.
 func DrainOutbox(repoRoot string, t *Tracker) DrainReport {
 	var rep DrainReport
 	path := outboxPath(repoRoot)
 	if _, err := os.Stat(path); err != nil {
 		return rep
 	}
-	err := withStateLock(repoRoot, "outbox", func() error {
-		have, err := readOutbox(path)
-		if err != nil {
-			return err
+	dir, err := ensureTrackerStateDir(repoRoot)
+	if err != nil {
+		rep.Warnings = append(rep.Warnings, "outbox: "+err.Error())
+		return rep
+	}
+	me := canonicalRoot(repoRoot)
+	drainLock := filepath.Join(dir, "outbox-drain-"+rootKey(repoRoot)+".lock")
+	unlockDrain, ok, err := tryLockFile(drainLock)
+	if err != nil || !ok {
+		if list, lerr := ListOutbox(repoRoot); lerr == nil {
+			rep.Pending = len(list)
 		}
-		me := canonicalRoot(repoRoot)
-		blocked := map[string]bool{}
-		var keep []OutboxEntry
-		for _, e := range have {
-			if e.RepoRoot != me {
-				keep = append(keep, e)
-				continue
+		return rep
+	}
+	defer unlockDrain()
+	done := map[int]bool{}
+	blocked := map[string]bool{}
+	for {
+		// Pick the next entry under the outbox lock.
+		var next *OutboxEntry
+		err := withStateLock(repoRoot, "outbox", func() error {
+			have, err := readOutbox(path)
+			if err != nil {
+				return err
 			}
-			issueKey := e.Backend + ":" + e.IssueID
-			if e.Failed || (e.IssueID != "" && blocked[issueKey]) {
-				keep = append(keep, e)
-				rep.Pending++
-				continue
+			for i := range have {
+				e := have[i]
+				if e.RepoRoot != me || done[e.Seq] {
+					continue
+				}
+				issueKey := e.Backend + ":" + e.IssueID
+				if e.Failed || (e.IssueID != "" && blocked[issueKey]) {
+					done[e.Seq] = true
+					continue
+				}
+				next = &e
+				return nil
 			}
-			err := sendEntry(t, e)
-			if err == nil {
-				rep.Sent++
-				continue
+			return nil
+		})
+		if err != nil {
+			rep.Warnings = append(rep.Warnings, "outbox: "+err.Error())
+			break
+		}
+		if next == nil {
+			break
+		}
+		e := *next
+		done[e.Seq] = true
+		issueKey := e.Backend + ":" + e.IssueID
+		sendErr := sendEntry(t, e)
+		refreshLock(drainLock)
+		// Record the outcome under the outbox lock.
+		err = withStateLock(repoRoot, "outbox", func() error {
+			have, err := readOutbox(path)
+			if err != nil {
+				return err
 			}
-			if errors.Is(err, errDropEntry) {
-				continue
+			var keep []OutboxEntry
+			for _, h := range have {
+				if h.Seq != e.Seq || h.RepoRoot != e.RepoRoot {
+					keep = append(keep, h)
+					continue
+				}
+				if sendErr == nil || errors.Is(sendErr, errDropEntry) {
+					continue
+				}
+				h.Attempts++
+				h.LastError = sendErr.Error()
+				code := adapterCode(sendErr)
+				if code != "" && !(&AdapterError{Code: code}).Retryable() {
+					h.Failed = true
+				}
+				keep = append(keep, h)
 			}
-			e.Attempts++
-			e.LastError = err.Error()
-			code := adapterCode(err)
+			return writeOutbox(path, keep)
+		})
+		if err != nil {
+			rep.Warnings = append(rep.Warnings, "outbox: "+err.Error())
+			break
+		}
+		switch {
+		case sendErr == nil:
+			rep.Sent++
+		case errors.Is(sendErr, errDropEntry):
+		default:
+			code := adapterCode(sendErr)
 			if code != "" && !(&AdapterError{Code: code}).Retryable() {
-				e.Failed = true
-				rep.Warnings = append(rep.Warnings, fmt.Sprintf("outbox %d (%s %s) failed and will not be retried: %v; drop it with `%s tracker outbox --drop %d`", e.Seq, e.Op, issueKey, err, CLIName, e.Seq))
+				rep.Warnings = append(rep.Warnings, fmt.Sprintf("outbox %d (%s %s) failed and will not be retried: %v; drop it with `%s tracker outbox --drop %d`", e.Seq, e.Op, issueKey, sendErr, CLIName, e.Seq))
 			}
 			if e.IssueID != "" {
 				blocked[issueKey] = true
 			}
-			keep = append(keep, e)
-			rep.Pending++
 		}
-		return writeOutbox(path, keep)
-	})
-	if err != nil {
-		rep.Warnings = append(rep.Warnings, "outbox: "+err.Error())
+	}
+	if list, err := ListOutbox(repoRoot); err == nil {
+		rep.Pending = len(list)
 	}
 	return rep
 }

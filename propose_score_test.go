@@ -11,6 +11,8 @@ func TestMain(m *testing.M) {
 	if runTestHelper() {
 		return
 	}
+	// In-process tests never start the sync daemon (the test binary is not sdd).
+	os.Setenv("SDD_NO_DAEMON", "1")
 	querySymbolHits = func(string, string, int) []CodeHit { return nil }
 	queryEmbeddingHits = func(string, string, int) []CodeHit { return nil }
 	os.Exit(m.Run())

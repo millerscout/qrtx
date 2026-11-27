@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -17,7 +19,7 @@ import (
 // change, skills or constitution.
 func Run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution|tracker|init\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution|tracker|init|sync\n", sdd.CLIName)
 		return fmt.Errorf("missing subcommand")
 	}
 	if args[0] == "change" {
@@ -34,6 +36,9 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	}
 	if args[0] == "init" {
 		return runInit(args[1:], stdout, stderr)
+	}
+	if args[0] == "sync" {
+		return runSync(args[1:], stdout, stderr)
 	}
 	switch args[0] {
 	case "graph":
@@ -112,7 +117,7 @@ func Run(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	default:
-		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution|tracker|init\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution|tracker|init|sync\n", sdd.CLIName)
 		return fmt.Errorf("unknown subcommand: %s", args[0])
 	}
 }
@@ -364,7 +369,9 @@ func slugFromArgs(args []string) string {
 
 // runSkills lists or installs the bundled agent skills.
 func runSkills(args []string, stdout, stderr io.Writer) error {
-	usage := func() { fmt.Fprintf(stderr, "Usage: %s skills list | install [--dir <dir>] [--force]\n", sdd.CLIName) }
+	usage := func() {
+		fmt.Fprintf(stderr, "Usage: %s skills list | install [--dir <dir>] [--force] [--hooks [--shared]]\n", sdd.CLIName)
+	}
 	if len(args) == 0 {
 		usage()
 		return fmt.Errorf("missing skills subcommand")
@@ -376,11 +383,15 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "install":
-		dir, force := "", false
+		dir, force, hooks, shared := "", false, false, false
 		for i := 1; i < len(args); i++ {
 			switch args[i] {
 			case "--force":
 				force = true
+			case "--hooks":
+				hooks = true
+			case "--shared":
+				shared = true
 			case "--dir":
 				i++
 				if i >= len(args) {
@@ -403,7 +414,28 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 		for _, r := range results {
 			_, _ = fmt.Fprintf(stdout, "%s %s\n", r.Action, r.Path)
 		}
-		return err
+		if err != nil || !hooks {
+			return err
+		}
+		root, err := sdd.RepoRoot()
+		if err != nil {
+			return err
+		}
+		name := "settings.local.json"
+		if shared {
+			name = "settings.json"
+		}
+		path := filepath.Join(root, ".claude", name)
+		changed, err := skills.InstallHooks(path, hookCommand())
+		if err != nil {
+			return err
+		}
+		action := "unchanged"
+		if changed {
+			action = "updated"
+		}
+		_, _ = fmt.Fprintf(stdout, "%s %s (sdd sync hooks)\n", action, path)
+		return nil
 	default:
 		usage()
 		return fmt.Errorf("unknown skills subcommand: %s", args[0])
@@ -457,4 +489,16 @@ func runConstitution(args []string, stdout, stderr io.Writer) error {
 		usage()
 		return fmt.Errorf("unknown constitution subcommand: %s", args[0])
 	}
+}
+
+// hookCommand is how installed hooks call sdd: by name when it is on PATH,
+// else by this binary's absolute path.
+func hookCommand() string {
+	if p, err := exec.LookPath(sdd.CLIName); err == nil && p != "" {
+		return sdd.CLIName
+	}
+	if exe, err := os.Executable(); err == nil {
+		return fmt.Sprintf("%q", exe)
+	}
+	return sdd.CLIName
 }
