@@ -1,6 +1,6 @@
 //go:build !cgo
 
-package sdd
+package qrtx
 
 // treeSitterEnabled reports whether non-Go definitions are indexed. Builds
 // without cgo have no tree-sitter, so only Go definitions are found.

@@ -1,22 +1,22 @@
-package sdd
+package qrtx
 
 import (
 	"os"
 	"strings"
 )
 
-// Environment variables sdd reads.
+// Environment variables qrtx reads.
 const (
 	// EnvRepo overrides the repository root (see RepoRoot).
-	EnvRepo = "SDD_REPO"
+	EnvRepo = "QRTX_REPO"
 	// EnvRunValidate set to "1" lets run-validate execute commands that are not allowlisted.
-	EnvRunValidate = "SDD_RUN_VALIDATE"
+	EnvRunValidate = "QRTX_RUN_VALIDATE"
 )
 
-// Host settings. A host that embeds sdd may change these once at startup.
+// Host settings. A host that embeds qrtx may change these once at startup.
 var (
 	// CLIName is the command shown in templates and error messages.
-	CLIName = "sdd"
+	CLIName = "qrtx"
 	// DefaultProject names the project for provider lookups when the caller
 	// gives none. Empty means the repository directory name.
 	DefaultProject string

@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"bytes"
@@ -8,6 +8,11 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if runTestHelper() {
+		return
+	}
+	// In-process tests never start the sync daemon (the test binary is not qrtx).
+	os.Setenv("QRTX_NO_DAEMON", "1")
 	querySymbolHits = func(string, string, int) []CodeHit { return nil }
 	queryEmbeddingHits = func(string, string, int) []CodeHit { return nil }
 	os.Exit(m.Run())

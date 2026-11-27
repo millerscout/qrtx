@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"fmt"
@@ -26,6 +26,37 @@ type RepoConfig struct {
 	Constitution []string `yaml:"constitution"`
 	// QuickCheck is a shell command run by `change archive --quick-check`.
 	QuickCheck string `yaml:"quick_check"`
+	// Project names this project in tracker refs; empty means DefaultProject,
+	// then the repository directory name.
+	Project string `yaml:"project"`
+	// Tracker selects the issue tracker backend. Unstable until v1.
+	Tracker TrackerConfig `yaml:"tracker"`
+	// Sync tunes session leases and the sync daemon. Unstable until v1.
+	Sync SyncConfig `yaml:"sync"`
+}
+
+// SyncConfig is the `sync:` block of .sdd.yaml; durations as Go strings.
+type SyncConfig struct {
+	Lease    string `yaml:"lease"`    // default 1h
+	Tick     string `yaml:"tick"`     // default 5s
+	Interval string `yaml:"interval"` // remote poll, default 2m
+}
+
+// TrackerConfig is the `tracker:` block of .sdd.yaml. LoadRepoConfig only
+// decodes it; the tracker commands validate it when they resolve a backend.
+type TrackerConfig struct {
+	// Backend is "file" (default) or <name> for qrtx-tracker-<name> on PATH.
+	Backend string `yaml:"backend"`
+	// Config is passed verbatim to the plugin. Never put secrets here.
+	Config map[string]any `yaml:"config"`
+	// StatusMap names the exact native status per category.
+	StatusMap map[string]string `yaml:"status_map"`
+	// Mirror is the granularity of issues qrtx creates; only "change" exists.
+	Mirror string `yaml:"mirror"`
+	// Comments is summary (default), minimal or off.
+	Comments string `yaml:"comments"`
+	// Timeout is the per-call plugin timeout in seconds (default 30).
+	Timeout int `yaml:"timeout"`
 }
 
 // LoadRepoConfig reads repoRoot/.sdd.yaml. A missing file is an empty config.

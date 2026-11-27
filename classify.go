@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ var classifyUncued func(kind string, lines []string) map[string]string
 // second. Nil means no first reader, so every line goes to SecondReader.
 var LineClassifier func(kind string, lines []string, criteria map[string]string) (map[string]string, error)
 
-var errNoLineClassifier = errors.New("sdd: no line classifier")
+var errNoLineClassifier = errors.New("qrtx: no line classifier")
 
 // SecondReader completes one LLM prompt. It labels lines the first reader
 // missed and settles disagreements. Nil means no LLM is used. A host sets it

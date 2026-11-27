@@ -1,0 +1,10 @@
+# Phase data model and protocol
+
+- [x] 1.1 Add `tracker.go` with `Issue`, `Status`, `SDDRef`, `IssueLink`, `IssueFilter`, `CreateIssueInput`, `UpdateIssueInput`, `TrackerCaps`, the `IssueTracker` interface and `SetIssueTracker`. `Issue` keeps unknown top-level JSON keys in an unexported raw map via custom `MarshalJSON`/`UnmarshalJSON`. verify: `go test . -run TestIssueRoundTrip` shows `extra` and `rank` survive a decode, close and encode byte-for-byte. covers S15
+{: id="phase-01-task-1"}
+- [x] 1.2 Add `adapter.go` with the `sdd.adapter/v1` request and response envelope types, the error codes `not_found|unsupported|auth|invalid|invalid_transition|rate_limited|unavailable`, and `ValidBackendName` (`^[a-z0-9-]+$`). verify: `go test . -run TestAdapterEnvelope` checks that `ValidBackendName` rejects `../evil` and `a/b`, and that an envelope round-trips. covers S8
+{: id="phase-01-task-2"}
+- [x] 1.3 Write `docs/tracker-protocol.md` and `docs/schema/tracker/v1/{issue,request,response}.json`. They cover the envelope, operations, capabilities and version negotiation, `client_ref` idempotency as a MUST, cursor pagination, the `<!-- sdd:v1 {json} -->` marker for round-tripping `sdd` refs, the ai-sdlc and Linear alignment, and the planned Gherkin tag convention. verify: `go test . -run TestTrackerSchema` marshals a full `Issue`, a minimal one, a request and an error response, and checks the required keys, the category enum, `client_ref` and `sdd[].role` against the schema files. covers S15
+{: id="phase-01-task-3"}
+- [x] 1.4 Add `Tracker` (`backend`, `config`, `status_map`, `mirror`, `comments`) and `Project` to `RepoConfig` in `repoconfig.go`. `LoadRepoConfig` only decodes the block. The tracker-resolution step validates it: `mirror` accepts only empty or `change`, and `comments` accepts `summary|minimal|off`. verify: `go test . -run TestTrackerConfig` shows resolution rejecting `mirror: tasks` with "only change is implemented", `LoadRepoConfig` and `ValidateChangeManifest` still succeeding, and an absent block giving the `file` backend. covers S18
+{: id="phase-01-task-4"}

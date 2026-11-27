@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"fmt"
@@ -109,7 +109,7 @@ func promoteBehaviour(repoRoot, slug, date string) ([]string, error) {
 		}
 		contract = strings.TrimRight(contract, "\n") + "\n\n"
 		if !strings.Contains(contract, "\n"+behaviourHeading+"\n") {
-			contract += behaviourHeading + "\n\nWhat archived changes promised for this package (`sdd change archive` appends; newest last).\n\n"
+			contract += behaviourHeading + "\n\nWhat archived changes promised for this package (`qrtx change archive` appends; newest last).\n\n"
 		}
 		contract += block
 		if err := os.WriteFile(path, []byte(contract), 0o644); err != nil {

@@ -15,8 +15,8 @@ Go 1.22 or newer. With cgo enabled, the tree-sitter grammars need a C compiler.
 
 ## Guidelines
 
-- Keep the CLI and the skills in step. `cli/cli_test.go` fails if a skill mentions an `sdd` command that does not exist.
-- A change to the manifest format needs a test and an update to `docs/format.md`. `examples/tic-tac-toe` must keep passing `sdd change verify` (`TestExampleChangeIsValid`).
+- Keep the CLI and the skills in step. `cli/cli_test.go` fails if a skill mentions an `qrtx` command that does not exist.
+- A change to the manifest format needs a test and an update to `docs/format.md`. `examples/tic-tac-toe` must keep passing `qrtx change verify` (`TestExampleChangeIsValid`).
 - New exported API is unstable until it is listed as stable in `doc.go`. Prefer unexported helpers.
 - Golden fixtures live in `testdata/fixtures/`. Update them in the same change as the behaviour they pin.
 

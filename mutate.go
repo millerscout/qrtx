@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 func MutatePackage(repoRoot, relPkg string) error {
 	relPkg = strings.Trim(strings.TrimSpace(relPkg), "/")
 	if relPkg == "" {
-		return fmt.Errorf("sdd mutate: missing package path")
+		return fmt.Errorf("qrtx mutate: missing package path")
 	}
 	if err := SyncPackageFromCode(repoRoot, relPkg); err != nil {
 		return err
@@ -19,7 +19,7 @@ func MutatePackage(repoRoot, relPkg string) error {
 		return err
 	}
 	if len(issues) > 0 {
-		return fmt.Errorf("sdd mutate: verify failed after sync for %s (%d issues)", relPkg, len(issues))
+		return fmt.Errorf("qrtx mutate: verify failed after sync for %s (%d issues)", relPkg, len(issues))
 	}
 	return nil
 }

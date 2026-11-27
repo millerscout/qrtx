@@ -1,23 +1,25 @@
-// Package cli is the command-line front end shared by the sdd binary and
-// hosts that embed sdd under their own command name.
+// Package cli is the command-line front end shared by the qrtx binary and
+// hosts that embed qrtx under their own command name.
 package cli
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/millerscout/sdd"
-	"github.com/millerscout/sdd/skills"
+	"github.com/millerscout/qrtx"
+	"github.com/millerscout/qrtx/skills"
 )
 
-// Run executes one sdd subcommand: verify-ast, graph, sync-from-code, mutate,
+// Run executes one qrtx subcommand: verify-ast, graph, sync-from-code, mutate,
 // change, skills or constitution.
 func Run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution|tracker|init|sync\n", qrtx.CLIName)
 		return fmt.Errorf("missing subcommand")
 	}
 	if args[0] == "change" {
@@ -29,20 +31,29 @@ func Run(args []string, stdout, stderr io.Writer) error {
 	if args[0] == "constitution" {
 		return runConstitution(args[1:], stdout, stderr)
 	}
+	if args[0] == "tracker" {
+		return runTracker(args[1:], stdout, stderr)
+	}
+	if args[0] == "init" {
+		return runInit(args[1:], stdout, stderr)
+	}
+	if args[0] == "sync" {
+		return runSync(args[1:], stdout, stderr)
+	}
 	switch args[0] {
 	case "graph":
-		root, err := sdd.RepoRoot()
+		root, err := qrtx.RepoRoot()
 		if err != nil {
 			return err
 		}
-		path, err := sdd.WriteGraph(root)
+		path, err := qrtx.WriteGraph(root)
 		if err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(stdout, "wrote %s\n", path)
 		return nil
 	case "sync-from-code":
-		root, err := sdd.RepoRoot()
+		root, err := qrtx.RepoRoot()
 		if err != nil {
 			return err
 		}
@@ -60,19 +71,19 @@ func Run(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 		if driftedOnly {
-			return sdd.SyncDriftedPackages(root, pkgs)
+			return qrtx.SyncDriftedPackages(root, pkgs)
 		}
 		for _, pkg := range pkgs {
-			if err := sdd.SyncPackageFromCode(root, pkg); err != nil {
+			if err := qrtx.SyncPackageFromCode(root, pkg); err != nil {
 				return err
 			}
 		}
 		if len(pkgs) == 0 {
-			return sdd.SyncDriftedPackages(root, nil)
+			return qrtx.SyncDriftedPackages(root, nil)
 		}
 		return nil
 	case "verify-ast":
-		root, err := sdd.RepoRoot()
+		root, err := qrtx.RepoRoot()
 		if err != nil {
 			return err
 		}
@@ -83,9 +94,9 @@ func Run(args []string, stdout, stderr io.Writer) error {
 				i++
 			}
 		}
-		return sdd.VerifyAST(stdout, root, pkgs)
+		return qrtx.VerifyAST(stdout, root, pkgs)
 	case "mutate":
-		root, err := sdd.RepoRoot()
+		root, err := qrtx.RepoRoot()
 		if err != nil {
 			return err
 		}
@@ -97,41 +108,41 @@ func Run(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 		if len(pkgs) == 0 {
-			return fmt.Errorf("sdd mutate: pass --package <path> (repeatable)")
+			return fmt.Errorf("qrtx mutate: pass --package <path> (repeatable)")
 		}
 		for _, pkg := range pkgs {
-			if err := sdd.MutatePackage(root, pkg); err != nil {
+			if err := qrtx.MutatePackage(root, pkg); err != nil {
 				return err
 			}
 		}
 		return nil
 	default:
-		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s verify-ast|graph|sync-from-code|mutate|change|skills|constitution|tracker|init|sync\n", qrtx.CLIName)
 		return fmt.Errorf("unknown subcommand: %s", args[0])
 	}
 }
 
 func runChange(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		fmt.Fprintf(stderr, "Usage: %s change new|list|status|verify|score|review-packet|lint-active|propose-context|finish-propose|finish-apply|run-validate|archive\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s change new|list|status|verify|score|review-packet|lint-active|propose-context|finish-propose|finish-apply|run-validate|archive\n", qrtx.CLIName)
 		return fmt.Errorf("missing change subcommand")
 	}
-	root, err := sdd.RepoRoot()
+	root, err := qrtx.RepoRoot()
 	if err != nil {
 		return err
 	}
 	switch args[0] {
 	case "new":
 		if len(args) < 2 {
-			return fmt.Errorf("sdd change new: pass change slug")
+			return fmt.Errorf("qrtx change new: pass change slug")
 		}
-		if err := sdd.NewChange(root, args[1]); err != nil {
+		if err := qrtx.NewChange(root, args[1]); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(stdout, "created sdd/changes/%s/\n", strings.TrimSpace(args[1]))
 		return nil
 	case "list":
-		slugs, err := sdd.ListChanges(root)
+		slugs, err := qrtx.ListChanges(root)
 		if err != nil {
 			return err
 		}
@@ -148,7 +159,7 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 		if slug == "" {
-			slugs, err := sdd.ListChanges(root)
+			slugs, err := qrtx.ListChanges(root)
 			if err != nil {
 				return err
 			}
@@ -157,7 +168,7 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 			}
 			slug = slugs[0]
 		}
-		sum, err := sdd.SummarizeChange(root, slug)
+		sum, err := qrtx.SummarizeChange(root, slug)
 		if err != nil {
 			return err
 		}
@@ -183,12 +194,12 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 			slug = args[1]
 		}
 		if slug == "" {
-			return fmt.Errorf("sdd change verify: pass --change <slug>")
+			return fmt.Errorf("qrtx change verify: pass --change <slug>")
 		}
-		if err := sdd.ValidateChangeManifest(root, slug); err != nil {
+		if err := qrtx.ValidateChangeManifest(root, slug); err != nil {
 			return err
 		}
-		_, _ = fmt.Fprintf(stdout, "sdd change verify: OK (%s)\n", strings.TrimSpace(slug))
+		_, _ = fmt.Fprintf(stdout, "qrtx change verify: OK (%s)\n", strings.TrimSpace(slug))
 		return nil
 	case "score":
 		slug := ""
@@ -199,13 +210,13 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 		if slug == "" {
-			return fmt.Errorf("sdd change score: pass --change <slug>")
+			return fmt.Errorf("qrtx change score: pass --change <slug>")
 		}
-		sc, err := sdd.ScoreChangeManifest(root, slug)
+		sc, err := qrtx.ScoreChangeManifest(root, slug)
 		if err != nil {
 			return err
 		}
-		out := sdd.ScoreJSON(sc)
+		out := qrtx.ScoreJSON(sc)
 		enc := json.NewEncoder(stdout)
 		return enc.Encode(out)
 	case "review-packet":
@@ -221,19 +232,19 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 		if slug == "" {
-			return fmt.Errorf("sdd change review-packet: pass --change <slug>")
+			return fmt.Errorf("qrtx change review-packet: pass --change <slug>")
 		}
-		pkt, err := sdd.BuildReviewPacket(root, slug)
+		pkt, err := qrtx.BuildReviewPacket(root, slug)
 		if err != nil {
 			return err
 		}
 		if asJSON {
 			return json.NewEncoder(stdout).Encode(pkt)
 		}
-		_, _ = fmt.Fprint(stdout, sdd.FormatReviewPacket(pkt))
+		_, _ = fmt.Fprint(stdout, qrtx.FormatReviewPacket(pkt))
 		return nil
 	case "lint-active":
-		if err := sdd.LintActiveChanges(root, stdout); err != nil {
+		if err := qrtx.LintActiveChanges(root, stdout); err != nil {
 			return err
 		}
 		return nil
@@ -255,9 +266,9 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 		if slug == "" {
-			return fmt.Errorf("sdd change propose-context: pass --change <slug>")
+			return fmt.Errorf("qrtx change propose-context: pass --change <slug>")
 		}
-		rep, err := sdd.ProposeContext(root, slug, sdd.ProposeContextOpts{RefreshGraph: refresh})
+		rep, err := qrtx.ProposeContext(root, slug, qrtx.ProposeContextOpts{RefreshGraph: refresh})
 		if err != nil {
 			return err
 		}
@@ -265,27 +276,27 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 			_, _ = fmt.Fprintf(stderr, "warning: %s\n", w)
 		}
 		if jsonOut {
-			return sdd.WriteProposeContextJSON(stdout, rep)
+			return qrtx.WriteProposeContextJSON(stdout, rep)
 		}
-		return sdd.WriteProposeContextHuman(stdout, rep)
+		return qrtx.WriteProposeContextHuman(stdout, rep)
 	case "finish-propose":
 		slug := slugFromArgs(args[1:])
 		if slug == "" {
-			return fmt.Errorf("sdd change finish-propose: pass --change <slug>")
+			return fmt.Errorf("qrtx change finish-propose: pass --change <slug>")
 		}
-		return sdd.FinishPropose(root, slug, stdout, stderr)
+		return qrtx.FinishPropose(root, slug, stdout, stderr)
 	case "finish-apply":
 		slug := slugFromArgs(args[1:])
 		if slug == "" {
-			return fmt.Errorf("sdd change finish-apply: pass --change <slug>")
+			return fmt.Errorf("qrtx change finish-apply: pass --change <slug>")
 		}
-		return sdd.FinishApply(root, slug, stdout, stderr)
+		return qrtx.FinishApply(root, slug, stdout, stderr)
 	case "run-validate":
 		slug := slugFromArgs(args[1:])
 		if slug == "" {
-			return fmt.Errorf("sdd change run-validate: pass --change <slug>")
+			return fmt.Errorf("qrtx change run-validate: pass --change <slug>")
 		}
-		return sdd.RunValidateTasks(root, slug, stdout, stderr)
+		return qrtx.RunValidateTasks(root, slug, stdout, stderr)
 	case "archive":
 		slug := ""
 		runValidate := false
@@ -308,25 +319,37 @@ func runChange(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 		if slug == "" {
-			return fmt.Errorf("sdd change archive: pass change slug")
+			return fmt.Errorf("qrtx change archive: pass change slug")
 		}
 		if runValidate {
-			if err := sdd.RunValidateTasks(root, slug, stdout, stderr); err != nil {
+			if err := qrtx.RunValidateTasks(root, slug, stdout, stderr); err != nil {
 				return err
 			}
 		}
 		if quickCheck {
-			if err := sdd.RunQuickCheck(root, stdout, stderr); err != nil {
+			if err := qrtx.RunQuickCheck(root, stdout, stderr); err != nil {
 				return err
 			}
 		}
-		if err := sdd.ArchiveChange(root, slug); err != nil {
+		linked := false
+		if man, err := qrtx.ParseChangeFile(root, strings.TrimSpace(slug)); err == nil {
+			linked = len(man.Issues) > 0
+		}
+		if err := qrtx.ArchiveChange(root, slug); err != nil {
 			return err
 		}
 		_, _ = fmt.Fprintf(stdout, "archived sdd/changes/%s\n", strings.TrimSpace(slug))
+		if linked {
+			t, err := qrtx.OpenTracker(root)
+			if err != nil {
+				fmt.Fprintf(stderr, "warning: tracker: %v; the writes stay queued (%s tracker outbox)\n", err, qrtx.CLIName)
+				return nil
+			}
+			reportDrain(qrtx.DrainOutbox(root, t), stderr)
+		}
 		return nil
 	default:
-		fmt.Fprintf(stderr, "Usage: %s change new|list|status|verify|score|review-packet|lint-active|propose-context|finish-propose|finish-apply|run-validate|archive\n", sdd.CLIName)
+		fmt.Fprintf(stderr, "Usage: %s change new|list|status|verify|score|review-packet|lint-active|propose-context|finish-propose|finish-apply|run-validate|archive\n", qrtx.CLIName)
 		return fmt.Errorf("unknown change subcommand: %s", args[0])
 	}
 }
@@ -346,7 +369,9 @@ func slugFromArgs(args []string) string {
 
 // runSkills lists or installs the bundled agent skills.
 func runSkills(args []string, stdout, stderr io.Writer) error {
-	usage := func() { fmt.Fprintf(stderr, "Usage: %s skills list | install [--dir <dir>] [--force]\n", sdd.CLIName) }
+	usage := func() {
+		fmt.Fprintf(stderr, "Usage: %s skills list | install [--dir <dir>] [--force] [--hooks [--shared]]\n", qrtx.CLIName)
+	}
 	if len(args) == 0 {
 		usage()
 		return fmt.Errorf("missing skills subcommand")
@@ -358,11 +383,15 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 		}
 		return nil
 	case "install":
-		dir, force := "", false
+		dir, force, hooks, shared := "", false, false, false
 		for i := 1; i < len(args); i++ {
 			switch args[i] {
 			case "--force":
 				force = true
+			case "--hooks":
+				hooks = true
+			case "--shared":
+				shared = true
 			case "--dir":
 				i++
 				if i >= len(args) {
@@ -375,7 +404,7 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 			}
 		}
 		if dir == "" {
-			root, err := sdd.RepoRoot()
+			root, err := qrtx.RepoRoot()
 			if err != nil {
 				return err
 			}
@@ -385,7 +414,36 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 		for _, r := range results {
 			_, _ = fmt.Fprintf(stdout, "%s %s\n", r.Action, r.Path)
 		}
-		return err
+		if err != nil || !hooks {
+			return err
+		}
+		root, err := qrtx.RepoRoot()
+		if err != nil {
+			return err
+		}
+		name := "settings.local.json"
+		if shared {
+			name = "settings.json"
+		}
+		path := filepath.Join(root, ".claude", name)
+		changed, err := skills.InstallHooks(path, hookCommand())
+		if err != nil {
+			return err
+		}
+		action := "unchanged"
+		if changed {
+			action = "updated"
+		}
+		_, _ = fmt.Fprintf(stdout, "%s %s (qrtx sync hooks)\n", action, path)
+		if !shared {
+			if added, err := ensureGitignored(root, ".claude/settings.local.json"); err != nil {
+				return err
+			} else if added {
+				_, _ = fmt.Fprintf(stdout, "updated %s (ignores .claude/settings.local.json)\n", filepath.Join(root, ".gitignore"))
+			}
+			_, _ = fmt.Fprintf(stdout, "note: these hooks apply to this clone only; run with --shared to commit them in .claude/settings.json\n")
+		}
+		return nil
 	default:
 		usage()
 		return fmt.Errorf("unknown skills subcommand: %s", args[0])
@@ -394,30 +452,30 @@ func runSkills(args []string, stdout, stderr io.Writer) error {
 
 // runConstitution shows the project's constitution or scaffolds one.
 func runConstitution(args []string, stdout, stderr io.Writer) error {
-	usage := func() { fmt.Fprintf(stderr, "Usage: %s constitution show [--json] | init [--force]\n", sdd.CLIName) }
+	usage := func() { fmt.Fprintf(stderr, "Usage: %s constitution show [--json] | init [--force]\n", qrtx.CLIName) }
 	if len(args) == 0 {
 		usage()
 		return fmt.Errorf("missing constitution subcommand")
 	}
-	root, err := sdd.RepoRoot()
+	root, err := qrtx.RepoRoot()
 	if err != nil {
 		return err
 	}
 	switch args[0] {
 	case "show":
 		asJSON := len(args) > 1 && args[1] == "--json"
-		docs, err := sdd.LoadConstitution(root)
+		docs, err := qrtx.LoadConstitution(root)
 		if err != nil {
 			return err
 		}
 		if asJSON {
 			if docs == nil {
-				docs = []sdd.ConstitutionDoc{}
+				docs = []qrtx.ConstitutionDoc{}
 			}
 			return json.NewEncoder(stdout).Encode(docs)
 		}
 		if len(docs) == 0 {
-			_, _ = fmt.Fprintf(stdout, "no constitution (add %s or list files under `constitution:` in %s; `%s constitution init` writes a template)\n", sdd.DefaultConstitutionFile, sdd.RepoConfigFile, sdd.CLIName)
+			_, _ = fmt.Fprintf(stdout, "no constitution (add %s or list files under `constitution:` in %s; `%s constitution init` writes a template)\n", qrtx.DefaultConstitutionFile, qrtx.RepoConfigFile, qrtx.CLIName)
 			return nil
 		}
 		for _, d := range docs {
@@ -429,7 +487,7 @@ func runConstitution(args []string, stdout, stderr io.Writer) error {
 		return nil
 	case "init":
 		force := len(args) > 1 && args[1] == "--force"
-		path, err := sdd.InitConstitution(root, force)
+		path, err := qrtx.InitConstitution(root, force)
 		if err != nil {
 			return err
 		}
@@ -439,4 +497,38 @@ func runConstitution(args []string, stdout, stderr io.Writer) error {
 		usage()
 		return fmt.Errorf("unknown constitution subcommand: %s", args[0])
 	}
+}
+
+// hookCommand is how installed hooks call qrtx: by name when it is on PATH,
+// else by this binary's absolute path.
+func hookCommand() string {
+	if p, err := exec.LookPath(qrtx.CLIName); err == nil && p != "" {
+		return qrtx.CLIName
+	}
+	if exe, err := os.Executable(); err == nil {
+		return fmt.Sprintf("%q", exe)
+	}
+	return qrtx.CLIName
+}
+
+// ensureGitignored appends entry to root/.gitignore unless git already
+// ignores it. It reports whether it changed the file.
+func ensureGitignored(root, entry string) (bool, error) {
+	check := exec.Command("git", "check-ignore", "-q", entry)
+	check.Dir = root
+	if err := check.Run(); err == nil {
+		return false, nil
+	} else if ee, ok := err.(*exec.ExitError); !ok || ee.ExitCode() != 1 {
+		return false, nil // not a git repository, or no git
+	}
+	path := filepath.Join(root, ".gitignore")
+	b, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return false, err
+	}
+	if len(b) > 0 && b[len(b)-1] != '\n' {
+		b = append(b, '\n')
+	}
+	b = append(b, entry+"\n"...)
+	return true, os.WriteFile(path, b, 0o644)
 }

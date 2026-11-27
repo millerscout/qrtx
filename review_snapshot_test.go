@@ -1,4 +1,4 @@
-package sdd
+package qrtx
 
 import (
 	"os"
@@ -8,13 +8,13 @@ import (
 )
 
 // TestReviewPacketSnapshot writes the packet of every saved bench plan
-// (SDD_PACKET_PLANS: a glob of plan.md files) to SDD_PACKET_OUT, so two builds
+// (QRTX_PACKET_PLANS: a glob of plan.md files) to QRTX_PACKET_OUT, so two builds
 // can be diffed. Each plan.md holds "## FILE: <slug>/<rel>" sections. Skipped
 // unless both variables are set.
 func TestReviewPacketSnapshot(t *testing.T) {
-	glob, out := os.Getenv("SDD_PACKET_PLANS"), os.Getenv("SDD_PACKET_OUT")
+	glob, out := os.Getenv("QRTX_PACKET_PLANS"), os.Getenv("QRTX_PACKET_OUT")
 	if glob == "" || out == "" {
-		t.Skip("set SDD_PACKET_PLANS and SDD_PACKET_OUT")
+		t.Skip("set QRTX_PACKET_PLANS and QRTX_PACKET_OUT")
 	}
 	repoRoot, err := filepath.Abs("../..")
 	if err != nil {

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/millerscout/qrtx/docs/schema/tracker/v1/request.json",
+  "title": "qrtx adapter request (stdin)",
+  "type": "object",
+  "required": ["protocol", "kind", "op"],
+  "properties": {
+    "protocol": {"const": "sdd.adapter/v1"},
+    "kind": {"const": "tracker"},
+    "op": {"enum": ["capabilities", "list_issues", "get_issue", "create_issue", "update_issue", "transition_issue", "comment"]},
+    "config": {"type": "object", "description": ".sdd.yaml tracker.config, verbatim. Never secrets."},
+    "args": {
+      "type": "object",
+      "description": "list_issues: {filter}; get_issue: {id}; create_issue: {title, description?, category?, labels?, sdd?, client_ref, fresh?}; update_issue: {id, title?, description?, labels?, add_sdd?}; transition_issue: {id, category, native?}; comment: {id, markdown, client_ref}."
+    }
+  }
+}
