@@ -15,14 +15,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go: ["1.22.x", "stable"]
+        go: ["1.24.x", "stable"]
         cgo: ["0", "1"]
     env:
       CGO_ENABLED: ${{ matrix.cgo }}
-      # Go 1.22's internal linker omits LC_UUID, which macOS 26's dyld requires
-      # ("missing LC_UUID load command", abort trap) for pure-Go binaries built
-      # with cgo on. The system linker adds it.
-      GOFLAGS: ${{ (matrix.os == 'macos-latest' && matrix.go == '1.22.x' && matrix.cgo == '1') && '-ldflags=-linkmode=external' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
