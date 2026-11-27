@@ -274,16 +274,21 @@ func runInit(args []string, stdout, stderr io.Writer) error {
 			steps = append(steps, step{"created", "constitution " + filepath.ToSlash(rel)})
 		}
 	}
+	driverWarn := ""
 	if inGit(root) {
-		action, _, err := registerMergeDriver(root)
+		action, _, warn, err := registerMergeDriver(root)
 		if err != nil {
 			return err
 		}
 		steps = append(steps, step{action, "issues.jsonl merge driver"})
+		driverWarn = warn
 	} else {
 		steps = append(steps, step{"skipped", "issues.jsonl merge driver (not a git repository)"})
 	}
 	printSteps(stdout, steps)
+	if driverWarn != "" {
+		fmt.Fprintf(stdout, "warning: %s\n", driverWarn)
+	}
 	if backend := flagValue(args, "--tracker"); backend != "" {
 		setupArgs := append([]string{backend}, args...)
 		if _, err := trackerSetup(root, setupArgs, stdout); err != nil {

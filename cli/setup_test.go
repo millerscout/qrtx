@@ -186,7 +186,8 @@ func TestInit(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
-			if !strings.HasPrefix(line, "unchanged") {
+			// A warning (the test binary is not the qrtx on PATH) changes nothing.
+			if !strings.HasPrefix(line, "unchanged") && !strings.HasPrefix(line, "warning:") {
 				t.Fatalf("re-run changed something: %q\n%s", line, out)
 			}
 		}

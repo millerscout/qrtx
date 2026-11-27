@@ -12,6 +12,13 @@
   - **Hooks:** re-run `qrtx skills install --hooks` to replace hooks that call `sdd`, and `qrtx init` (or `qrtx tracker init`) to point the issues merge driver at the new binary.
   - **Unchanged on purpose:** the plugin protocol id (`sdd.adapter/v1`), issue ids (`sdd-…`), the tracker `sdd` refs field and `<!-- sdd:v1 … -->` marker, the Jira `sdd` property, the `sdd-issues` merge driver name and `.git/sdd/` state, so existing data and remote issues keep working.
 
+### Fixed
+
+- **Tracker review fixes** (change `tracker-review-fixes`).
+  - **Merge driver:** `qrtx init` and `qrtx tracker init` register the issues merge driver as `qrtx tracker merge-driver …` when `PATH` resolves `qrtx` to the running binary, so upgrades behind that name keep merges working. From any other binary they record its path and print a `warning:`, and they never replace a working `PATH` driver with a temporary path.
+  - **`tracker get`:** no longer repeats the context line without a change once the issue is started, and drops empty fields. `--json` is unchanged.
+  - **`tracker start`:** warns on stderr when the issue is already linked from an active change in this or a sibling worktree. It still links the issue and exits 0.
+
 ### Added
 
 - **`qrtx sync`: coordination between agent sessions in one repository** (change `tracker-sync`; unstable until v1).

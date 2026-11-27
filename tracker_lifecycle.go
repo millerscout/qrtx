@@ -101,6 +101,55 @@ type StartResult struct {
 	Slug    string
 	Ref     string
 	Created bool
+	// AlsoActive lists other active changes, in any worktree of the
+	// repository, whose manifests already link this issue. Starting is still
+	// allowed; callers warn.
+	AlsoActive []ActiveLink
+}
+
+// ActiveLink is an active change that links an issue. Worktree is empty for
+// the worktree StartFromIssue ran in.
+type ActiveLink struct {
+	Slug     string
+	Worktree string
+}
+
+// activeLinksTo returns the active changes in every worktree of repoRoot's
+// repository whose manifests list ref, except slug in repoRoot itself.
+func activeLinksTo(repoRoot, defaultBackend, ref, slug string) []ActiveLink {
+	here := canonicalRoot(repoRoot)
+	var out []ActiveLink
+	for _, wt := range worktreesOf(repoRoot) {
+		dir := canonicalRoot(wt.Path)
+		slugs, err := ListChanges(dir)
+		if err != nil {
+			continue
+		}
+		for _, s := range slugs {
+			if dir == here && s == slug {
+				continue
+			}
+			raw, err := os.ReadFile(changeFilePath(dir, s))
+			if err != nil {
+				continue
+			}
+			man, err := ParseChangeMarkdown(string(raw), changeFilePath(dir, s))
+			if err != nil {
+				continue
+			}
+			for _, r := range man.Issues {
+				if normalizeRef(r, defaultBackend) == ref {
+					link := ActiveLink{Slug: s}
+					if dir != here {
+						link.Worktree = dir
+					}
+					out = append(out, link)
+					break
+				}
+			}
+		}
+	}
+	return out
 }
 
 // StartFromIssue links issue ref to change slug in both directions. It reads
@@ -123,6 +172,7 @@ func StartFromIssue(repoRoot string, t *Tracker, ref, slug string) (StartResult,
 		return StartResult{}, err
 	}
 	res := StartResult{Slug: slug, Ref: backend + ":" + is.ID}
+	res.AlsoActive = activeLinksTo(repoRoot, t.Backend, res.Ref, slug)
 	path := changeFilePath(repoRoot, slug)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err := NewChange(repoRoot, slug); err != nil {

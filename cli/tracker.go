@@ -89,8 +89,14 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 		if is.Description != "" {
 			fmt.Fprintf(stdout, "\n%s\n", is.Description)
 		}
-		for _, r := range is.Refs {
-			fmt.Fprintf(stdout, "  sdd: %s %s %s %s\n", r.Repo, r.Project, r.Change, r.Role)
+		for _, r := range displayRefs(is.Refs) {
+			fields := []string{}
+			for _, f := range []string{r.Repo, r.Project, r.Change, r.Role} {
+				if f != "" {
+					fields = append(fields, f)
+				}
+			}
+			fmt.Fprintf(stdout, "  sdd: %s\n", strings.Join(fields, " "))
 		}
 		return nil
 	case "add":
@@ -154,6 +160,13 @@ func runTracker(args []string, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stdout, "created sdd/changes/%s/\n", res.Slug)
 		}
 		fmt.Fprintf(stdout, "linked %s to %s\n", res.Ref, res.Slug)
+		for _, a := range res.AlsoActive {
+			where := ""
+			if a.Worktree != "" {
+				where = " (worktree " + a.Worktree + ")"
+			}
+			fmt.Fprintf(stderr, "warning: %s is also linked to active change %s%s\n", res.Ref, a.Slug, where)
+		}
 		return nil
 	case "from-deferred":
 		slug := flagValue(args, "--change")
@@ -235,32 +248,98 @@ func trackerOutbox(root string, args []string, stdout, stderr io.Writer) error {
 	return nil
 }
 
+// displayRefs drops a ref that names no change when another ref for the
+// same repo and project names one: `add` records the first, `start` the
+// second, and both stay in the backend. JSON output keeps every ref.
+func displayRefs(refs []qrtx.SDDRef) []qrtx.SDDRef {
+	hasChange := map[[2]string]bool{}
+	for _, r := range refs {
+		if r.Change != "" {
+			hasChange[[2]string{r.Repo, r.Project}] = true
+		}
+	}
+	out := make([]qrtx.SDDRef, 0, len(refs))
+	for _, r := range refs {
+		if r.Change == "" && hasChange[[2]string{r.Repo, r.Project}] {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
 func trackerInit(root string, stdout io.Writer) error {
-	action, driver, err := registerMergeDriver(root)
+	action, driver, warn, err := registerMergeDriver(root)
 	if err != nil {
 		return err
 	}
 	if action == "unchanged" {
 		fmt.Fprintf(stdout, "unchanged merge driver sdd-issues: %s\n", driver)
-		return nil
+	} else {
+		fmt.Fprintf(stdout, "registered merge driver sdd-issues: %s\n", driver)
 	}
-	fmt.Fprintf(stdout, "registered merge driver sdd-issues: %s\n", driver)
+	if warn != "" {
+		fmt.Fprintf(stdout, "warning: %s\n", warn)
+	}
 	return nil
 }
 
-// registerMergeDriver writes the .gitattributes line and the git config for
-// the issues.jsonl merge driver. It reports "unchanged" when both are in place.
-func registerMergeDriver(root string) (action, driver string, err error) {
-	exe, err := os.Executable()
+// mergeDriverArgs is what follows the command in the issues merge driver.
+const mergeDriverArgs = " tracker merge-driver %O %A %B"
+
+// pathMergeDriver is the driver that runs the CLI by name, through PATH.
+func pathMergeDriver() string { return qrtx.CLIName + mergeDriverArgs }
+
+// mergeDriverFor picks the merge driver this binary should register: the
+// CLI name when PATH resolves it to this very binary (so upgrades behind that
+// name keep working), else this binary's absolute path. Embedded hosts set
+// CLIName to "host qrtx"; the first word is looked up and the rest is kept.
+func mergeDriverFor() (driver string, onPath bool, exe string, err error) {
+	exe, err = os.Executable()
 	if err != nil {
-		return "", "", err
+		return "", false, "", err
 	}
-	driver = fmt.Sprintf("%q tracker merge-driver %%O %%A %%B", exe)
+	words := strings.Fields(qrtx.CLIName)
+	if len(words) > 0 {
+		if found, lerr := exec.LookPath(words[0]); lerr == nil && sameFile(found, exe) {
+			return pathMergeDriver(), true, exe, nil
+		}
+	}
+	rest := ""
+	if len(words) > 1 {
+		rest = " " + strings.Join(words[1:], " ")
+	}
+	return fmt.Sprintf("%q", exe) + rest + mergeDriverArgs, false, exe, nil
+}
+
+// sameFile reports whether a and b are the same file after resolving links.
+func sameFile(a, b string) bool {
+	sa, err := os.Stat(a)
+	if err != nil {
+		return false
+	}
+	sb, err := os.Stat(b)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(sa, sb)
+}
+
+// registerMergeDriver writes the .gitattributes line and the git config for
+// the issues.jsonl merge driver. It reports "unchanged" when both are in
+// place. It never replaces a PATH-form driver with an absolute path: a
+// go run or temporary build would otherwise break merges once it is gone.
+// warn is non-empty when the driver depends on a binary not found on PATH.
+func registerMergeDriver(root string) (action, driver, warn string, err error) {
+	want, onPath, exe, err := mergeDriverFor()
+	if err != nil {
+		return "", "", "", err
+	}
 	attr := filepath.Join(root, ".gitattributes")
 	line := qrtx.IssuesFile + " merge=sdd-issues"
 	raw, err := os.ReadFile(attr)
 	if err != nil && !os.IsNotExist(err) {
-		return "", "", err
+		return "", "", "", err
 	}
 	action = "unchanged"
 	if !strings.Contains(string(raw), line) {
@@ -269,23 +348,33 @@ func registerMergeDriver(root string) (action, driver string, err error) {
 			text += "\n"
 		}
 		if err := os.WriteFile(attr, []byte(text+line+"\n"), 0o644); err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		action = "created"
 	}
 	get := exec.Command("git", "config", "--get", "merge.sdd-issues.driver")
 	get.Dir = root
-	if out, err := get.Output(); err == nil && strings.TrimSpace(string(out)) == driver {
-		return action, driver, nil
+	current := ""
+	if out, gerr := get.Output(); gerr == nil {
+		current = strings.TrimSpace(string(out))
 	}
-	for _, kv := range [][2]string{{"merge.sdd-issues.name", "sdd issues.jsonl merge"}, {"merge.sdd-issues.driver", driver}} {
+	if !onPath {
+		if current == pathMergeDriver() {
+			return action, current, fmt.Sprintf("this %s (%s) is not the one on PATH; kept the merge driver that runs %s from PATH", qrtx.CLIName, exe, qrtx.CLIName), nil
+		}
+		warn = fmt.Sprintf("the merge driver runs %s, which is not on PATH; if that file goes away, merges of %s fail. Install %s on PATH and re-run `%s tracker init`", exe, qrtx.IssuesFile, qrtx.CLIName, qrtx.CLIName)
+	}
+	if current == want {
+		return action, want, warn, nil
+	}
+	for _, kv := range [][2]string{{"merge.sdd-issues.name", "sdd issues.jsonl merge"}, {"merge.sdd-issues.driver", want}} {
 		cmd := exec.Command("git", "config", kv[0], kv[1])
 		cmd.Dir = root
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return "", "", fmt.Errorf("git config %s: %v: %s", kv[0], err, strings.TrimSpace(string(out)))
+		if out, cerr := cmd.CombinedOutput(); cerr != nil {
+			return "", "", "", fmt.Errorf("git config %s: %v: %s", kv[0], cerr, strings.TrimSpace(string(out)))
 		}
 	}
-	return "created", driver, nil
+	return "created", want, warn, nil
 }
 
 // trackerMergeDriver is git's merge driver: it merges into ours (%A) and
