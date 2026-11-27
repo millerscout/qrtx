@@ -96,4 +96,3 @@ func WithRecentCreates(repoRoot, backend string, f IssueFilter, list []Issue, ge
 // IsUnavailable reports a transport-level failure, after which a write may
 // or may not have reached the provider.
 func IsUnavailable(err error) bool { return adapterCode(err) == ErrCodeUnavailable }
-
