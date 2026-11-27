@@ -1,6 +1,6 @@
 ```change
 name: no-legacy-sdd
-status: planning
+status: complete
 packages: []
 ```
 
