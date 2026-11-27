@@ -1,0 +1,11 @@
+[
+  {
+    "at": "<TIME>",
+    "key": "demo/1.1",
+    "kind": "claim",
+    "root": "<ROOT>",
+    "seq": 1,
+    "session": "A",
+    "worktree": "<ROOT>"
+  }
+]

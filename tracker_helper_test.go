@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -214,6 +215,7 @@ func installHelper(t *testing.T, names ...string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	skipOnWindows(t, "test-binary plugins via symlinks")
 	for _, n := range names {
 		if err := os.Symlink(exe, filepath.Join(bin, n)); err != nil {
 			t.Fatal(err)
@@ -251,4 +253,12 @@ func fakeLog(dir string) []string {
 func seedFake(t *testing.T, dir string, issues ...Issue) {
 	t.Helper()
 	saveFake(fakeState{Issues: issues})
+}
+
+// skipOnWindows skips a test that needs a Unix-only feature.
+func skipOnWindows(t testing.TB, feature string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skipf("windows: needs %s", feature)
+	}
 }

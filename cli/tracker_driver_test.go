@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -63,6 +64,7 @@ func installed(t *testing.T, dir, version string) string {
 	link := filepath.Join(dir, "bin", "qrtx")
 	_ = os.MkdirAll(filepath.Dir(link), 0o755)
 	_ = os.Remove(link)
+	skipOnWindows(t, "symlinks")
 	if err := os.Symlink(filepath.Join(dir, version, "qrtx"), link); err != nil {
 		t.Fatal(err)
 	}
@@ -107,10 +109,10 @@ func TestTrackerMergeDriverPath(t *testing.T) {
 		repo := newGitRepo(t, []string{x})
 		out := qrtxRun(t, repo, "tracker", "init")
 		got := driverOf(t, repo)
-		if !strings.Contains(got, qrtxBinary(t)) || got == pathDriver() {
+		if !namesPath(got, qrtxBinary(t)) || got == pathDriver() {
 			t.Fatalf("driver %q should name %s", got, qrtxBinary(t))
 		}
-		if !strings.Contains(out, "warning:") || !strings.Contains(out, qrtxBinary(t)) {
+		if !strings.Contains(out, "warning:") || !namesPath(out, qrtxBinary(t)) {
 			t.Fatalf("want a warning naming the path:\n%s", out)
 		}
 	})
@@ -146,4 +148,11 @@ func TestTrackerMergeDriverPath(t *testing.T) {
 			t.Fatalf("want unchanged plus a warning:\n%s", out)
 		}
 	})
+}
+
+// namesPath reports whether s names path, raw or Go-quoted (the driver is
+// written with %q, which doubles Windows backslashes; git's sh unquotes it).
+func namesPath(s, path string) bool {
+	q := strconv.Quote(path)
+	return strings.Contains(s, path) || strings.Contains(s, q[1:len(q)-1])
 }

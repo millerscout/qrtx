@@ -25,7 +25,8 @@ func TestSyncHeartbeatCLI(t *testing.T) {
 	root := t.TempDir()
 	_ = os.WriteFile(filepath.Join(root, qrtx.RepoConfigFile), nil, 0o644) // hooks act only in qrtx projects
 	t.Setenv(qrtx.EnvRepo, root)
-	withHookStdin(t, `{"session_id":"abc","cwd":"`+root+`","hook_event_name":"UserPromptSubmit"}`)
+	hookJSON, _ := json.Marshal(map[string]string{"session_id": "abc", "cwd": root, "hook_event_name": "UserPromptSubmit"})
+	withHookStdin(t, string(hookJSON)) // json.Marshal escapes Windows backslashes
 	if out, _, err := run(t, "sync", "heartbeat", "--hook"); err != nil || !strings.Contains(out, "abc: lease until") {
 		t.Fatalf("%q %v", out, err)
 	}

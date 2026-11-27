@@ -124,7 +124,7 @@ func TestConstitutionCommands(t *testing.T) {
 	if out, _, err := run(t, "constitution", "show", "--json"); err != nil || strings.TrimSpace(out) != "[]" {
 		t.Fatalf("show --json without one: %q %v", out, err)
 	}
-	if out, _, err := run(t, "constitution", "init"); err != nil || !strings.Contains(out, qrtx.DefaultConstitutionFile) {
+	if out, _, err := run(t, "constitution", "init"); err != nil || !strings.Contains(filepath.ToSlash(out), qrtx.DefaultConstitutionFile) {
 		t.Fatalf("init: %q %v", out, err)
 	}
 	if _, _, err := run(t, "constitution", "init"); err == nil {
