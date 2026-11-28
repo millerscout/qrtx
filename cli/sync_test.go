@@ -78,7 +78,12 @@ func TestSyncInboxCLI(t *testing.T) {
 	for i := 0; i < 25; i++ {
 		run(t, "sync", "claim", "task/"+string(rune('a'+i)), "--session", "A")
 	}
-	withHookStdin(t, `{"session_id":"B"}`)
+	cwd, err := json.Marshal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hook := `{"session_id":"B","cwd":` + string(cwd) + `}`
+	withHookStdin(t, hook)
 	out, _, err := run(t, "sync", "inbox", "--hook", "--brief")
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +92,7 @@ func TestSyncInboxCLI(t *testing.T) {
 	if len(lines) != 12 || !strings.HasPrefix(lines[11], "…and 15 more") {
 		t.Fatalf("brief:\n%s", out)
 	}
-	withHookStdin(t, `{"session_id":"B"}`)
+	withHookStdin(t, hook)
 	if out, _, _ := run(t, "sync", "inbox", "--hook", "--brief"); strings.TrimSpace(out) != "" {
 		t.Fatalf("nothing new should print nothing: %q", out)
 	}
