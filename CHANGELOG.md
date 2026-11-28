@@ -6,6 +6,10 @@
 
 - **Go 1.24 is the minimum** (change `go-minimum`; was Go 1.22). On macOS 26, binaries that Go 1.22's internal linker builds with cgo on abort at start with `dyld: missing LC_UUID load command`, which hit `qrtx`'s test binaries and the `qrtx-tracker-*` plugins. Go 1.24 is the first release whose internal linker writes LC_UUID, so CI no longer forces external linking. With the default `GOTOOLCHAIN=auto` an older `go` command fetches 1.24 on its own; with `GOTOOLCHAIN=local` it refuses to build. Go 1.22 and 1.23 are end of life.
 
+### Fixed
+
+- **Sync daemon start:** a daemon no longer exits when a concurrent `sync status` or heartbeat is probing its lock at the moment it starts.
+
 ### Testing
 
 - **Regression suite** (change `regression-suite`):

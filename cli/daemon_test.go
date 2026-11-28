@@ -233,7 +233,12 @@ func TestDaemonTwoRoots(t *testing.T) {
 		t.Fatalf("same key in another root conflicted: %s", out)
 	}
 	gitDir := filepath.Join(repo, ".git", "sdd")
-	logb, _ := os.ReadFile(filepath.Join(gitDir, "sync.log"))
+	// The daemon starts on its own time: wait for its first log line.
+	var logb []byte
+	waitFor(t, "daemon log", 3*time.Second, func() bool {
+		logb, _ = os.ReadFile(filepath.Join(gitDir, "sync.log"))
+		return strings.Contains(string(logb), "started (")
+	})
 	if strings.Count(string(logb), "started (") != 1 {
 		t.Fatalf("want one daemon for both roots:\n%s", logb)
 	}
