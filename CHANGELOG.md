@@ -10,6 +10,7 @@
   - A session's inbox leaves out task ticks in its own worktree, unless another live session shares that worktree.
   - Watch snapshots of deleted files, such as those of removed worktrees, are dropped.
   - Ticks found in one scan of one file are listed in task order (1.2 before 1.10).
+- **Sync daemon start:** a daemon no longer exits when a concurrent `sync status` or heartbeat is probing its lock at the moment it starts.
 
 ### Changed
 
@@ -24,6 +25,13 @@
   - Fuzz targets for the merge driver, the marker, ADF and manifest editing.
   - Nightly real-GitHub check and a 5-minute soak.
   - See `docs/testing.md`.
+
+### Removed
+
+- **Support for the old `sdd` name** (change `no-legacy-sdd`). Before upgrading:
+  - **Credentials:** `<config dir>/sdd/credentials.yaml` is no longer read. Move it to `<config dir>/qrtx/credentials.yaml`.
+  - **Hooks:** `qrtx skills install --hooks` (project or `--global`) no longer replaces hooks that call `sdd`, and no longer counts them as sync hooks. Remove them by hand.
+  - **Validate commands:** `run-validate` no longer allowlists `sdd …` or `./sdd …`. Change such lines to `qrtx …`, or list `sdd ` under `validate_allow`.
 
 ## v0.5.0 — 2026-11-27
 

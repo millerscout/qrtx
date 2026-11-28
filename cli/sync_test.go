@@ -78,7 +78,12 @@ func TestSyncInboxCLI(t *testing.T) {
 	for i := 0; i < 25; i++ {
 		run(t, "sync", "claim", "task/"+string(rune('a'+i)), "--session", "A")
 	}
-	withHookStdin(t, `{"session_id":"B"}`)
+	cwd, err := json.Marshal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hook := `{"session_id":"B","cwd":` + string(cwd) + `}`
+	withHookStdin(t, hook)
 	out, _, err := run(t, "sync", "inbox", "--hook", "--brief")
 	if err != nil {
 		t.Fatal(err)
@@ -91,7 +96,7 @@ func TestSyncInboxCLI(t *testing.T) {
 	if err != nil || strings.Count(rest, "claimed task/") != 15 || !strings.Contains(rest, "task/k") || strings.Contains(rest, "task/j ") {
 		t.Fatalf("remainder: %v\n%s", err, rest)
 	}
-	withHookStdin(t, `{"session_id":"B"}`)
+	withHookStdin(t, hook)
 	if out, _, _ := run(t, "sync", "inbox", "--hook", "--brief"); strings.TrimSpace(out) != "" {
 		t.Fatalf("nothing new should print nothing: %q", out)
 	}

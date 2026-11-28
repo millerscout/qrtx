@@ -33,9 +33,7 @@ type Creds struct {
 }
 
 // CredentialsPath is $QRTX_CREDENTIALS, else <user config dir>/qrtx/credentials.yaml
-// ($XDG_CONFIG_HOME or ~/.config on Unix, %AppData% on Windows). When that
-// file is missing but one exists under the tool's old name (<dir>/sdd/), the
-// old file is used, so credentials bound before the rename keep working.
+// ($XDG_CONFIG_HOME or ~/.config on Unix, %AppData% on Windows).
 func CredentialsPath() (string, error) {
 	if p := strings.TrimSpace(os.Getenv("QRTX_CREDENTIALS")); p != "" {
 		return p, nil
@@ -57,14 +55,7 @@ func CredentialsPath() (string, error) {
 		}
 		dir = filepath.Join(home, ".config")
 	}
-	path := filepath.Join(dir, "qrtx", "credentials.yaml")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		legacy := filepath.Join(dir, "sdd", "credentials.yaml")
-		if _, err := os.Stat(legacy); err == nil {
-			return legacy, nil
-		}
-	}
-	return path, nil
+	return filepath.Join(dir, "qrtx", "credentials.yaml"), nil
 }
 
 var bindingKeys = map[string]bool{"token_env": true, "email_env": true, "token_command": true, "scopes": true}

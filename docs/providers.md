@@ -38,7 +38,7 @@ Without a terminal (agents, CI), a missing value is an error that names the flag
 Tokens never go in `.sdd.yaml`. That file is committed, and a repository you clone could point a plugin at its own server, or at another repository on the same host. Instead, each user keeps a credentials file:
 
 - `$QRTX_CREDENTIALS`, else
-- `$XDG_CONFIG_HOME/sdd/credentials.yaml` or `~/.config/sdd/credentials.yaml` (`%AppData%\sdd\credentials.yaml` on Windows).
+- `$XDG_CONFIG_HOME/qrtx/credentials.yaml` or `~/.config/qrtx/credentials.yaml` (`%AppData%\qrtx\credentials.yaml` on Windows).
 
 ```yaml
 hosts:

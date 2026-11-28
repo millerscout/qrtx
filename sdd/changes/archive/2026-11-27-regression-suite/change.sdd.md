@@ -1,6 +1,6 @@
 ```change
 name: regression-suite
-status: applying
+status: complete
 packages: []
 ```
 
@@ -108,6 +108,10 @@ Rollback: n/a (revert the workflow files; no runtime state).
   - **symlinks:** `manifest_quality_grounding_test.go` (2 sites), `cli/tracker_driver_test.go`, `skills/skills_test.go`;
   - **test-binary plugins via symlinks:** `tracker_helper_test.go` `installHelper`, which covers every root test that uses the fake plugin;
   - **sh-script plugins:** `cli/tracker_test.go` (2), `cli/tracker_precedence_test.go`, `cli/daemon_test.go` `downPlugin`.
+- CI on PR #3 (2026-11-27):
+  - **First run:** Windows failed 17 tests, mostly because the built binaries had no `.exe` suffix, and `race` failed because race-built plugins sleep 1s at exit.
+  - **Second run:** 3 Windows failures remained: the merge-driver path quoting, `TestWatch`'s fixed wait, and the killed-daemon lock limitation, which is filed for `sync-hardening`.
+  - **Third run:** all 13 jobs green.
 - Apply runs (2026-11-27):
   - **e2e:** 6 scenarios pass, twice in a row, and 4 known-bug scenarios skip. With `QRTX_E2E_KNOWN_BUGS=1` all four fail with their symptoms: `qrtx-tracker-fake not found on PATH` in `sync.log`; a `task_progress` root of `…/main` instead of the worktree; 2 `claim_expired` for one claim; no warning.
   - **Goldens:** stable over 10 runs. Renaming `SyncStatus`'s `outbox` tag fails only `sync_status.json`, with a diff naming the field.
@@ -128,6 +132,7 @@ Rollback: n/a (revert the workflow files; no runtime state).
 
 ## Deferred
 
+- `nightly-secret-check`: run V1.7 once the user adds `TRACKER_SCRATCH_TOKEN`.
 - `sync-hardening`: on Windows a killed daemon's `daemon.lock` (an `O_EXCL` file holding `pid nonce`) looks held until the 60s stale rule, so `sync status` reports a dead daemon as running and no new daemon starts for up to a minute. `tryLockFile` should treat the lock as stale when the owner pid is gone. Found by `TestDaemonAutostart` on `windows-latest` (2026-11-27); that step skips on Windows until fixed. Also, `setManifestIssues` replaces only the `issues:` line, so a hand-written multi-line list (`issues:` with `- ref` lines, or a flow list wrapped over lines) is left half in place and breaks the manifest's YAML on the next `tracker start`. `FuzzSetManifestIssues` found it on 2026-11-27; the property skips multi-line lists, and the seed is committed with the fix. Also, `sync status` reports `outbox: 0` while writes are pending, until sync has state (`ReadSyncStatus` returns before counting the outbox when `state.json` is missing; found by `TestOutboxDrain`, 2026-11-27); also decide whether `claim --release` should start the daemon (it extends the lease without one); also the plugin lookup fix, watch attribution, legacy claim migration and the unattributed-session warning. Each removes its known-bug guard.
 - `tracker-jira-live-check`: a nightly Jira step, once a Jira sandbox exists.
 - `manifest-fence-consistency`: `ParseChangeMarkdown` accepts "```change" with text on the same line (`extractFencedBlock` trims), but `setManifestIssues` treats that text as part of the fence line. `FuzzSetManifestIssues` found it on 2026-11-27 with the input "```changename: 0\n\v```"; the property is limited to well-formed fences until this is fixed.
@@ -153,7 +158,8 @@ Rollback: n/a (revert the workflow files; no runtime state).
 - [x] V1.3 `go test ./... -count=1 -run 'Golden'` covers S9
 - [x] V1.4 `go test -run '^$' -fuzz FuzzMergeIssues -fuzztime 10s .` covers S10
 - [x] V1.5 `go test -tags e2e ./e2e/ -count=1 -run TestSoakInvariants` covers S12
-- [ ] V1.6 manual: push the branch, open a draft PR and confirm the CI jobs (S1). Dispatch `nightly` by hand with and without the secret (S11). Run the 5-minute soak once (S12). covers S1,S11
+- [x] V1.6 manual: PR millerscout/qrtx#3 ran all 13 CI jobs green (`test` on Ubuntu, macOS and Windows, plus `race`, `fuzz` and `e2e`) before merging as `2c50967`, on 2026-11-27. The `nightly` workflow was dispatched by hand on `main` (run 46057035106): the 5-minute soak made 1510 operations, 751 events and 0 violations, and the GitHub step skipped with `TRACKER_SCRATCH_TOKEN not set`. covers S1,S11
+- [ ] V1.7 manual: dispatch `nightly` with the `TRACKER_SCRATCH_TOKEN` secret set and confirm every `tracker check` op passes against the scratch repo. Not run: the secret is not added yet. covers S11
 
 ## Constitution
 

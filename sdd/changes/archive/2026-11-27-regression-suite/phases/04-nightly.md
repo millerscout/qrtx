@@ -1,6 +1,6 @@
 # Phase nightly workflow and soak
 
-- [ ] 4.1 Add `.github/workflows/nightly.yml` (cron `0 6 * * *` plus `workflow_dispatch`):
+- [x] 4.1 Add `.github/workflows/nightly.yml` (cron `0 6 * * *` plus `workflow_dispatch`):
   - it builds `qrtx` and `qrtx-tracker-github`;
   - when `TRACKER_SCRATCH_TOKEN` is set, it writes a temp credentials file binding `api.github.com` to scope `millerscout/sdd-tracker-scratch` with `token_env`, and runs `qrtx tracker check --allow-writes` in a temp repo configured for that repo;
   - otherwise it prints `::notice::TRACKER_SCRATCH_TOKEN not set; skipping real GitHub check`.
