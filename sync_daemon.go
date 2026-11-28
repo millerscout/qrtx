@@ -15,6 +15,7 @@ const (
 	daemonLockName = "daemon.lock"
 	daemonInfoFile = "daemon.json"
 	daemonStopFile = "stop"
+	daemonGuard    = "daemon.guard"
 	syncLogFile    = "sync.log"
 )
 
@@ -28,6 +29,13 @@ func daemonDisabled() bool {
 
 // daemonRunning reports whether a process holds daemon.lock in dir.
 func daemonRunning(dir string) bool {
+	// The probe takes daemon.lock for a moment. The guard keeps a daemon that
+	// is starting from reading that as another daemon and leaving.
+	release, err := lockFile(filepath.Join(dir, daemonGuard))
+	if err != nil {
+		return false
+	}
+	defer release()
 	unlock, ok, err := tryLockFile(filepath.Join(dir, daemonLockName))
 	if err != nil {
 		return false
@@ -106,7 +114,12 @@ func RunDaemon(repoRoot string, logw io.Writer) error {
 		return err
 	}
 	lockPath := filepath.Join(dir, daemonLockName)
+	release, err := lockFile(filepath.Join(dir, daemonGuard))
+	if err != nil {
+		return err
+	}
 	unlock, ok, err := tryLockFile(lockPath)
+	release()
 	if err != nil {
 		return err
 	}

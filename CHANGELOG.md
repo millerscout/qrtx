@@ -6,6 +6,10 @@
 
 - **Go 1.24 is the minimum** (change `go-minimum`; was Go 1.22). On macOS 26, binaries that Go 1.22's internal linker builds with cgo on abort at start with `dyld: missing LC_UUID load command`, which hit `qrtx`'s test binaries and the `qrtx-tracker-*` plugins. Go 1.24 is the first release whose internal linker writes LC_UUID, so CI no longer forces external linking. With the default `GOTOOLCHAIN=auto` an older `go` command fetches 1.24 on its own; with `GOTOOLCHAIN=local` it refuses to build. Go 1.22 and 1.23 are end of life.
 
+### Fixed
+
+- **Sync daemon start:** a daemon no longer exits when a concurrent `sync status` or heartbeat is probing its lock at the moment it starts.
+
 ### Testing
 
 - **Regression suite** (change `regression-suite`):
@@ -15,6 +19,13 @@
   - Fuzz targets for the merge driver, the marker, ADF and manifest editing.
   - Nightly real-GitHub check and a 5-minute soak.
   - See `docs/testing.md`.
+
+### Removed
+
+- **Support for the old `sdd` name** (change `no-legacy-sdd`). Before upgrading:
+  - **Credentials:** `<config dir>/sdd/credentials.yaml` is no longer read. Move it to `<config dir>/qrtx/credentials.yaml`.
+  - **Hooks:** `qrtx skills install --hooks` (project or `--global`) no longer replaces hooks that call `sdd`, and no longer counts them as sync hooks. Remove them by hand.
+  - **Validate commands:** `run-validate` no longer allowlists `sdd …` or `./sdd …`. Change such lines to `qrtx …`, or list `sdd ` under `validate_allow`.
 
 ## v0.5.0 — 2026-11-27
 

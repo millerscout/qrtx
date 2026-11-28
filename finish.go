@@ -245,9 +245,6 @@ func allowedValidateCommand(cmd string, escape bool, extra []string) bool {
 		"python3 scripts/",
 		CLIName + " ",
 		"./" + CLIName + " ",
-		// The tool's name before qrtx; manifests written then still say it.
-		"sdd ",
-		"./sdd ",
 	}
 	allowed = append(allowed, extra...)
 	for _, p := range allowed {
