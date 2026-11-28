@@ -28,9 +28,8 @@ var syncHooks = []hookSpec{
 
 // InstallHooks merges the qrtx sync hooks into the Claude Code settings file
 // at path, keeping every other key and hook. qrtxCmd is how the hooks call
-// qrtx ("qrtx", or a quoted absolute path). Hooks that still call the tool by
-// its old name, sdd, are replaced. It returns changed=false, leaving the file
-// untouched, when every hook is already there.
+// qrtx ("qrtx", or a quoted absolute path). It returns changed=false, leaving
+// the file untouched, when every hook is already there.
 func InstallHooks(path, qrtxCmd string) (bool, error) {
 	settings := map[string]any{}
 	raw, err := os.ReadFile(path)
@@ -50,11 +49,6 @@ func InstallHooks(path, qrtxCmd string) (bool, error) {
 	for _, h := range syncHooks {
 		command := qrtxCmd + " " + h.args
 		groups, _ := hooks[h.event].([]any)
-		if kept, removed := dropLegacy(groups, h.args); removed {
-			groups = kept
-			hooks[h.event] = groups
-			changed = true
-		}
 		if hasCommand(groups, command) {
 			continue
 		}
@@ -102,48 +96,9 @@ func hasCommand(groups []any, command string) bool {
 	return false
 }
 
-// dropLegacy removes hooks whose command runs the old qrtx binary (bare, or a
-// path ending in /sdd, quoted or not) with args, and any group left empty.
-func dropLegacy(groups []any, args string) ([]any, bool) {
-	removed := false
-	var out []any
-	for _, g := range groups {
-		gm, ok := g.(map[string]any)
-		list, _ := gm["hooks"].([]any)
-		if !ok || list == nil {
-			out = append(out, g)
-			continue
-		}
-		var keep []any
-		for _, h := range list {
-			hm, _ := h.(map[string]any)
-			if cmd, _ := hm["command"].(string); isLegacyCommand(cmd, args) {
-				removed = true
-				continue
-			}
-			keep = append(keep, h)
-		}
-		if len(keep) == 0 && len(list) > 0 {
-			continue
-		}
-		gm["hooks"] = keep
-		out = append(out, gm)
-	}
-	return out, removed
-}
-
-func isLegacyCommand(cmd, args string) bool {
-	prog, ok := strings.CutSuffix(cmd, " "+args)
-	if !ok {
-		return false
-	}
-	prog = strings.Trim(prog, `"`)
-	return prog == "sdd" || filepath.Base(prog) == "sdd"
-}
-
 // HasSyncHooks reports whether the settings file at path holds a hook that
-// runs a qrtx sync hook command, through qrtx or the old sdd binary (bare or
-// by path, quoted or not). A missing file holds none.
+// runs a qrtx sync hook command through qrtx (bare or by path, quoted or
+// not). A missing file holds none.
 func HasSyncHooks(path string) (bool, error) {
 	raw, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
@@ -183,7 +138,7 @@ func isSyncCommand(cmd string) bool {
 			continue
 		}
 		base := filepath.Base(strings.Trim(prog, `"`))
-		if base == "qrtx" || base == "qrtx.exe" || base == "sdd" {
+		if base == "qrtx" || base == "qrtx.exe" {
 			return true
 		}
 	}
