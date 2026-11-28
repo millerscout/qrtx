@@ -2,13 +2,19 @@
 
 ## Unreleased
 
+### Fixed
+
+- **Sync notices** (`sync inbox`, `sync watch`; change `sync-marks`):
+  - A task is reported once. The daemon watches the files `change status` counts: `phases/*.md` when a change has them, else `change.sdd.md`. A phase index line such as `1.1` no longer repeats task `1.1`. For phased changes, `V*` and `## Wiki` checkboxes are no longer reported.
+  - `sync inbox --brief` leaves the events it does not print unread, so the `sync inbox` it points at shows them.
+  - A session's inbox leaves out task ticks in its own worktree, unless another live session shares that worktree.
+  - Watch snapshots of deleted files, such as those of removed worktrees, are dropped.
+  - Ticks found in one scan of one file are listed in task order (1.2 before 1.10).
+- **Sync daemon start:** a daemon no longer exits when a concurrent `sync status` or heartbeat is probing its lock at the moment it starts.
+
 ### Changed
 
 - **Go 1.24 is the minimum** (change `go-minimum`; was Go 1.22). On macOS 26, binaries that Go 1.22's internal linker builds with cgo on abort at start with `dyld: missing LC_UUID load command`, which hit `qrtx`'s test binaries and the `qrtx-tracker-*` plugins. Go 1.24 is the first release whose internal linker writes LC_UUID, so CI no longer forces external linking. With the default `GOTOOLCHAIN=auto` an older `go` command fetches 1.24 on its own; with `GOTOOLCHAIN=local` it refuses to build. Go 1.22 and 1.23 are end of life.
-
-### Fixed
-
-- **Sync daemon start:** a daemon no longer exits when a concurrent `sync status` or heartbeat is probing its lock at the moment it starts.
 
 ### Testing
 

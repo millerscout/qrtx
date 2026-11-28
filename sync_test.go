@@ -246,6 +246,55 @@ func TestSyncInbox(t *testing.T) {
 	}
 }
 
+func TestSyncInboxLimit(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	_, _ = Heartbeat(root, who("A"), now, false)
+	_, _ = Heartbeat(root, who("B"), now, false)
+	for i := 0; i < 25; i++ {
+		_ = Claim(root, who("A"), "k/"+string(rune('a'+i)), false, now, false)
+	}
+	evs, more, err := InboxLimit(root, who("B"), now, 0, 10)
+	if err != nil || len(evs) != 10 || more != 15 || evs[0].Key != "k/a" {
+		t.Fatalf("first: %d events, %d more, %v", len(evs), more, err)
+	}
+	evs, more, _ = InboxLimit(root, who("B"), now, 0, 0)
+	if len(evs) != 15 || more != 0 || evs[0].Key != "k/k" {
+		t.Fatalf("rest: %d events, %d more: %s", len(evs), more, kinds(evs))
+	}
+}
+
+func TestSyncInboxOwnTicks(t *testing.T) {
+	root := t.TempDir()
+	now := time.Now()
+	shared := who("B")
+	shared.ID = "B2"
+	_, _ = Heartbeat(root, who("A"), now, false)
+	_, _ = Heartbeat(root, who("B"), now, false)
+	tick := func(wt string) {
+		t.Helper()
+		done := true
+		if err := withSync(root, now, 0, true, func(tx *syncTx) error {
+			tx.emit(SyncEvent{Kind: EventTaskProgress, Change: "demo", Task: "1.1", Done: &done, Worktree: wt})
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tick("/wt/A")
+	tick("/wt/B")
+	evs, _ := Inbox(root, who("B"), now, 0)
+	if len(evs) != 1 || evs[0].Worktree != "/wt/A" {
+		t.Fatalf("alone in its worktree: %+v", evs)
+	}
+	// With a second session in the worktree, either may have ticked.
+	_, _ = Heartbeat(root, shared, now, false)
+	tick("/wt/B")
+	if evs, _ := Inbox(root, who("B"), now, 0); len(evs) != 1 {
+		t.Fatalf("shared worktree: %+v", evs)
+	}
+}
+
 func TestSyncTrim(t *testing.T) {
 	root := t.TempDir()
 	now := time.Now()

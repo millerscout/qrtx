@@ -164,20 +164,33 @@ func extractFencedBlock(markdown, lang string) (string, error) {
 	return strings.TrimSpace(rest[:end]), nil
 }
 
-// ChangeProgress parses task checkboxes in change.sdd.md.
-func ChangeProgress(repoRoot, slug string) tasksmd.Progress {
-	dir := filepath.Join(repoRoot, "sdd", "changes", slug, "phases")
+// taskFiles returns the files that hold a change's task checkboxes. A change
+// with a phases/ folder keeps them in phases/*.md (phased is true, and the
+// checkboxes in change.sdd.md are not tasks); any other in change.sdd.md.
+func taskFiles(repoRoot, slug string) (files []string, phased bool) {
+	dir := filepath.Join(changeDir(repoRoot, slug), "phases")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return tasksmd.ParseTasksMD(changeFilePath(repoRoot, slug))
+		return []string{changeFilePath(repoRoot, slug)}, false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
+			files = append(files, filepath.Join(dir, entry.Name()))
+		}
+	}
+	return files, true
+}
+
+// ChangeProgress counts the task checkboxes of a change (see taskFiles).
+func ChangeProgress(repoRoot, slug string) tasksmd.Progress {
+	files, phased := taskFiles(repoRoot, slug)
+	if !phased {
+		return tasksmd.ParseTasksMD(files[0])
 	}
 	var prog tasksmd.Progress
 	prog.Found = true
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-		one := tasksmd.ParseTasksMD(filepath.Join(dir, entry.Name()))
+	for _, f := range files {
+		one := tasksmd.ParseTasksMD(f)
 		prog.Total += one.Total
 		prog.Done += one.Done
 		for _, item := range one.NextItems {

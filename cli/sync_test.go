@@ -92,6 +92,10 @@ func TestSyncInboxCLI(t *testing.T) {
 	if len(lines) != 12 || !strings.HasPrefix(lines[11], "…and 15 more") {
 		t.Fatalf("brief:\n%s", out)
 	}
+	rest, _, err := run(t, "sync", "inbox", "--session", "B")
+	if err != nil || strings.Count(rest, "claimed task/") != 15 || !strings.Contains(rest, "task/k") || strings.Contains(rest, "task/j ") {
+		t.Fatalf("remainder: %v\n%s", err, rest)
+	}
 	withHookStdin(t, hook)
 	if out, _, _ := run(t, "sync", "inbox", "--hook", "--brief"); strings.TrimSpace(out) != "" {
 		t.Fatalf("nothing new should print nothing: %q", out)

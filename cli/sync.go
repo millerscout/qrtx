@@ -134,7 +134,13 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 		if hasFlag(args, "--hook") {
 			wait = time.Second
 		}
-		evs, err := qrtx.Inbox(root, who, now, wait)
+		// Only the brief text output is cut short; what it leaves out stays
+		// unread for the next inbox.
+		limit := 0
+		if hasFlag(args, "--brief") && !hasFlag(args, "--json") {
+			limit = 10
+		}
+		evs, more, err := qrtx.InboxLimit(root, who, now, wait, limit)
 		if err != nil {
 			if hasFlag(args, "--hook") {
 				return soft(err)
@@ -147,18 +153,14 @@ func runSync(args []string, stdout, stderr io.Writer) error {
 			}
 			return writeJSON(stdout, evs)
 		}
-		limit := len(evs)
-		if hasFlag(args, "--brief") && limit > 10 {
-			limit = 10
-		}
 		if len(evs) > 0 && hasFlag(args, "--hook") {
 			fmt.Fprintln(stdout, "Other qrtx sessions since your last prompt:")
 		}
-		for _, e := range evs[:limit] {
+		for _, e := range evs {
 			fmt.Fprintf(stdout, "- %s\n", e.Summary())
 		}
-		if limit < len(evs) {
-			fmt.Fprintf(stdout, "…and %d more (%s sync inbox)\n", len(evs)-limit, qrtx.CLIName)
+		if more > 0 {
+			fmt.Fprintf(stdout, "…and %d more (%s sync inbox)\n", more, qrtx.CLIName)
 		}
 		return nil
 	case "watch":

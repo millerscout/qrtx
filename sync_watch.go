@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,6 +60,28 @@ func watchTaskID(text string) string {
 	return "h" + hex.EncodeToString(sum[:])[:8]
 }
 
+var taskIDPartRE = regexp.MustCompile(`\d+|\D+`)
+
+// taskIDLess orders task ids comparing their numbers as numbers, so 1.2
+// comes before 1.10.
+func taskIDLess(a, b string) bool {
+	x, y := taskIDPartRE.FindAllString(a, -1), taskIDPartRE.FindAllString(b, -1)
+	for i := 0; i < len(x) && i < len(y); i++ {
+		m, errM := strconv.Atoi(x[i])
+		n, errN := strconv.Atoi(y[i])
+		switch {
+		case errM == nil && errN == nil && m != n:
+			return m < n
+		case (errM != nil || errN != nil) && x[i] != y[i]:
+			return x[i] < y[i]
+		}
+	}
+	if len(x) != len(y) {
+		return len(x) < len(y)
+	}
+	return a < b
+}
+
 type scannedFile struct {
 	path     string
 	mtime    int64
@@ -77,8 +101,9 @@ func readSyncStateRO(dir string) *syncState {
 
 // watchRoot snapshots the task checkboxes of root's changes in every
 // worktree and appends task_progress for each checkbox that changed since
-// the stored snapshot. New files are snapshotted silently; vanished files
-// are dropped silently.
+// the stored snapshot. Only a change's task files count (see taskFiles). New
+// files are snapshotted silently; vanished files are dropped silently, also
+// those of removed worktrees.
 func watchRoot(root string, logw io.Writer) {
 	dir, _ := trackerStateDir(root)
 	rel, err := filepath.Rel(gitToplevel(root), canonicalRoot(root))
@@ -91,22 +116,25 @@ func watchRoot(root string, logw io.Writer) {
 	for _, wt := range worktreesOf(root) {
 		wroot := filepath.Join(wt.Path, rel)
 		prefixes = append(prefixes, filepath.Join(wroot, "sdd", "changes")+string(filepath.Separator))
-		var files []string
-		for _, pat := range []string{"sdd/changes/*/" + changeFileName, "sdd/changes/*/phases/*.md"} {
-			m, _ := filepath.Glob(filepath.Join(wroot, filepath.FromSlash(pat)))
-			files = append(files, m...)
+		dirs, _ := filepath.Glob(filepath.Join(wroot, "sdd", "changes", "*"))
+		var files []scannedFile
+		for _, d := range dirs {
+			change := filepath.Base(d)
+			if change == archiveDirName {
+				continue
+			}
+			paths, _ := taskFiles(wroot, change)
+			for _, p := range paths {
+				files = append(files, scannedFile{path: p, change: change, worktree: wt})
+			}
 		}
-		for _, f := range files {
+		for _, sf := range files {
+			f := sf.path
 			info, err := os.Stat(f)
 			if err != nil {
 				continue
 			}
-			relPath, _ := filepath.Rel(filepath.Join(wroot, "sdd", "changes"), f)
-			change := strings.SplitN(filepath.ToSlash(relPath), "/", 2)[0]
-			if change == archiveDirName {
-				continue
-			}
-			sf := scannedFile{path: f, mtime: info.ModTime().UnixNano(), change: change, worktree: wt}
+			sf.mtime = info.ModTime().UnixNano()
 			if e, ok := old.Watch[f]; !ok || e.Mtime != sf.mtime {
 				sf.tasks = map[string]bool{}
 				for _, it := range tasksmd.ParseTasksMD(f).Items {
@@ -128,7 +156,13 @@ func watchRoot(root string, logw io.Writer) {
 			if e.Mtime == sf.mtime || sf.tasks == nil {
 				continue
 			}
-			for id, done := range sf.tasks {
+			ids := make([]string, 0, len(sf.tasks))
+			for id := range sf.tasks {
+				ids = append(ids, id)
+			}
+			sort.Slice(ids, func(i, j int) bool { return taskIDLess(ids[i], ids[j]) })
+			for _, id := range ids {
+				done := sf.tasks[id]
 				was, had := e.Tasks[id]
 				if had && was != done {
 					d := done
@@ -141,11 +175,15 @@ func watchRoot(root string, logw io.Writer) {
 			if seen[path] {
 				continue
 			}
+			// A file under no listed worktree goes only once it is gone:
+			// another subproject's entries must stay.
+			_, statErr := os.Stat(path)
+			gone := os.IsNotExist(statErr)
 			for _, p := range prefixes {
-				if strings.HasPrefix(path, p) {
-					delete(tx.state.Watch, path)
-					break
-				}
+				gone = gone || strings.HasPrefix(path, p)
+			}
+			if gone {
+				delete(tx.state.Watch, path)
 			}
 		}
 		return nil

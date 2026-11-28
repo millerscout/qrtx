@@ -582,8 +582,15 @@ func Claim(repoRoot string, who SessionInfo, key string, release bool, now time.
 // Inbox returns the events other sessions (or the daemon) caused since
 // who's cursor, and advances it. A session with no cursor starts at the end.
 func Inbox(repoRoot string, who SessionInfo, now time.Time, wait time.Duration) ([]SyncEvent, error) {
-	var out []SyncEvent
-	err := withSync(repoRoot, now, wait, false, func(tx *syncTx) error {
+	evs, _, err := InboxLimit(repoRoot, who, now, wait, 0)
+	return evs, err
+}
+
+// InboxLimit is Inbox returning at most limit events (0 means all). The
+// cursor stops before the first event left out, so the next call returns it;
+// more is how many were left out.
+func InboxLimit(repoRoot string, who SessionInfo, now time.Time, wait time.Duration, limit int) (out []SyncEvent, more int, err error) {
+	err = withSync(repoRoot, now, wait, false, func(tx *syncTx) error {
 		cur, ok := tx.state.Cursors[who.ID]
 		if !ok {
 			tx.state.Cursors[who.ID] = tx.lastSeq
@@ -594,13 +601,24 @@ func Inbox(repoRoot string, who SessionInfo, now time.Time, wait time.Duration) 
 			return err
 		}
 		evs = append(evs, numbered(tx.lastSeq, tx.events)...)
+		own := tx.soleWorktree(who)
 		last := cur
 		for _, e := range evs {
 			if e.Seq <= cur {
 				continue
 			}
+			// Watched ticks carry no session: those in a worktree only
+			// the caller works in are the caller's own.
+			show := e.Session != who.ID &&
+				!(e.Kind == EventTaskProgress && own != "" && canonicalRoot(e.Worktree) == own)
+			if show && limit > 0 && len(out) == limit {
+				more++
+			}
+			if more > 0 {
+				continue
+			}
 			last = e.Seq
-			if e.Session != who.ID {
+			if show {
 				out = append(out, e)
 			}
 		}
@@ -608,9 +626,24 @@ func Inbox(repoRoot string, who SessionInfo, now time.Time, wait time.Duration) 
 		return nil
 	})
 	if errors.Is(err, errSyncDisabled) {
-		return nil, nil
+		return nil, 0, nil
 	}
-	return out, err
+	return out, more, err
+}
+
+// soleWorktree is who's worktree when no other live session works in it,
+// else "".
+func (tx *syncTx) soleWorktree(who SessionInfo) string {
+	if who.Worktree == "" {
+		return ""
+	}
+	own := canonicalRoot(who.Worktree)
+	for id, s := range tx.state.Sessions {
+		if id != who.ID && tx.live(id) && s.Worktree != "" && canonicalRoot(s.Worktree) == own {
+			return ""
+		}
+	}
+	return own
 }
 
 // numbered gives not-yet-written events the seqs they will get.
